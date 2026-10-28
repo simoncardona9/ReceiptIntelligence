@@ -1,0 +1,14 @@
+node_modules
+.next
+coverage
+dist
+.git
+.env*
+uploads
+tmp
+docs
+reusable-skills
+.agents
+.aws
+.codex
+.idea

@@ -1,0 +1,13 @@
+{
+  "fixtureType": "synthetic-expense",
+  "merchant": "Comercio de Ejemplo",
+  "currency": "UYU",
+  "totalMinor": 1299,
+  "lineItems": [
+    {
+      "description": "Producto de prueba",
+      "quantity": 1,
+      "unitPriceMinor": 1299
+    }
+  ]
+}

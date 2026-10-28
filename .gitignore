@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Next.js and build output
+.next/
+out/
+build/
+dist/
+coverage/
+.turbo/
+next-env.d.ts
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Logs and local tooling
+*.log
+pnpm-debug.log*
+.eslintcache
+*.tsbuildinfo
+
+# pnpm-generated files and local package store
+.pnpm-store/
+.pnpm/
+
+# Local temporary and receipt files
+tmp/
+uploads/
