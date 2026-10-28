@@ -1,9 +1,8 @@
 # Version 1 Vertical Slice Plan
 
 This is the planning breakdown for Steps 1–6. These slices are ordered and
-reviewable, but none is approved for implementation until the user explicitly
-approves it. Every slice must be promoted individually and receive a focused
-implementation plan before work starts.
+reviewable; approve each one individually and give it a focused implementation
+plan before work starts. Slices 1.1 and 1.2 are approved and implemented.
 
 ## Step 1 — Secure foundation
 
@@ -67,6 +66,37 @@ approve access; roles are isolated per workspace; passwords and sessions are
 stored safely. **Boundary:** no receipt data or file storage.
 
 **Dependencies/risk:** 1.1; authentication and tenant-isolation risk.
+
+**Status:** Approved by the user's request and implemented on 2026-10-28.
+
+**Implementation plan:**
+
+1. Add a single PostgreSQL migration for users, workspaces, memberships,
+   access requests, hashed opaque sessions, and append-only auth/workspace
+   audit events. Keep all IDs UUID-based and add uniqueness/state constraints.
+2. Add validated email/password registration and login, scrypt password
+   hashes, generic login failures, HttpOnly/SameSite session cookies, hashed
+   session tokens, expiry/revocation, logout, and current-session lookup.
+3. Add authenticated workspace create/list/select and access-request create/list
+   and owner approve/decline operations. Commit membership/access state and its
+   audit event atomically; reject cross-workspace IDs server-side.
+4. Add Spanish-first register, sign-in, workspace selection, workspace create,
+   and pending-access review screens using the same API contracts.
+5. Add focused application/repository tests, migration checks, API contract
+   documentation, and run `pnpm check` plus database-backed runtime checks.
+
+**Invalid cases:** malformed email or workspace name; short or overlong
+password; duplicate registration with an indistinguishable response; incorrect
+credentials; missing, malformed, expired, or revoked session; request by an
+existing member; duplicate pending request; non-owner approval/decline;
+cross-workspace request IDs; invalid role; invalid Origin on browser mutations;
+and database failure during workspace, membership, or audit writes. Failures
+must not expose whether an account exists or leave partial state.
+
+**Data/security boundary:** no receipt tables or file access. Never log
+passwords, session tokens, or email addresses. Store only password hashes and
+SHA-256 hashes of random session tokens. Audit records contain actor/entity
+UUIDs and safe action/role metadata, not credentials or free-form user content.
 
 ### Slice 1.3 — Audit and authorization foundation
 
@@ -412,6 +442,6 @@ remaining limitations are documented. **Boundary:** no new product features.
 ## Planning status
 
 - Total planned slices: **25**.
-- Approved slices: **1** (1.1).
-- Implemented slices: **1** (1.1).
+- Approved slices: **2** (1.1 and 1.2).
+- Implemented slices: **2** (1.1 and 1.2).
 - Later slices remain drafts and are not authorized for implementation.

@@ -13,6 +13,8 @@
     "start": "next start",
     "build": "next build",
     "check:env": "node --import=tsx scripts/check-env.ts",
+    "db:migrate": "node --import=tsx scripts/migrate.ts",
+    "smoke:auth": "node --import=tsx scripts/smoke-auth.ts",
     "lint": "eslint .",
     "format": "prettier --write \"src/**/*.{ts,tsx}\" \"scripts/**/*.ts\" \"fixtures/**/*.json\" \"*.{json,mjs,mts,yml}\" compose.yaml README.md",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"scripts/**/*.ts\" \"fixtures/**/*.json\" \"*.{json,mjs,mts,yml}\" compose.yaml README.md",

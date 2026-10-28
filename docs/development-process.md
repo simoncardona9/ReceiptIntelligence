@@ -15,6 +15,12 @@ verification plan. Implement only the approved slice end to end: interaction,
 contract, authorization, domain behavior, persistence, audit/observability, and
 presentation.
 
+Use one Git branch per roadmap step, not per slice. Start the step branch from
+the repository's default branch, then implement every approved slice for that
+step on the same branch. After a step is reviewed and merged, start the next
+step's branch from the updated default branch. Branch creation does not replace
+the per-slice approval gate.
+
 Before editing: read the current requirements, roadmap, progress, relevant
 skills, and repository conventions. After editing: run proportionate tests,
 type checks, lint/format/build, inspect the diff, and record evidence.
@@ -28,9 +34,8 @@ The roadmap contains 25 vertical slices across Steps 1–6. Their outcomes,
 boundaries, dependencies, risks, and acceptance conditions are defined in
 [slice-plan.md](slice-plan.md). Promote only one slice at a time, add its exact
 implementation plan and invalid cases, and identify its migration, security,
-extraction, export, and integration risks before it starts. Slice 1.1 was
-approved by the user's explicit `go` instruction and implemented. No later
-slice is approved.
+extraction, export, and integration risks before it starts. Slices 1.1 and 1.2
+are approved and implemented. No later slice is approved.
 
 ## Definition of done
 

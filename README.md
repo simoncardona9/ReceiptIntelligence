@@ -23,6 +23,10 @@ The web app is at <http://localhost:3000>. Its health endpoint is
 Compose network. The example credentials are local development values and must
 not be reused elsewhere.
 
+The Compose startup applies pending database migrations before starting the
+app. The initial account flow is available at `/register`, `/login`, and
+`/workspaces`.
+
 To stop the services, run `docker compose down`. To also remove the local
 database volume, run `docker compose down --volumes`.
 
@@ -38,6 +42,11 @@ pnpm check
 build. `pnpm dev` and `pnpm start` validate required environment settings
 before starting. Configuration errors name the invalid variable and never
 print its value.
+
+Run `pnpm db:migrate` to apply pending migrations manually. With the Compose
+runtime running, `pnpm smoke:auth` exercises registration, sessions, workspace
+creation and selection, access requests, owner decisions, and safe retries using
+synthetic accounts. It leaves those synthetic accounts in the local database.
 
 All bundled examples are synthetic. Do not place receipts, receipt-derived
 values, credentials, or production configuration in this repository.

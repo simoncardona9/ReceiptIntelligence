@@ -22,7 +22,7 @@ services:
       [
         "sh",
         "-c",
-        "CI=true pnpm install --frozen-lockfile && pnpm dev --hostname 0.0.0.0",
+        "CI=true pnpm install --frozen-lockfile && pnpm db:migrate && pnpm dev --hostname 0.0.0.0",
       ]
     environment:
       DATABASE_URL: ${DATABASE_URL:?Copy .env.example to .env and set local development values}

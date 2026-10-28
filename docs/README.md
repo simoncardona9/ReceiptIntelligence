@@ -16,6 +16,7 @@ It must be reviewed before implementation starts.
 | [security-privacy.md](security-privacy.md) | Access, retention, privacy, and threat controls |
 | [backend-api-design.md](backend-api-design.md) | API and module boundaries |
 | [api-documentation-policy.md](api-documentation-policy.md) | Contract documentation requirements |
+| [auth-api.md](auth-api.md) | Authentication and workspace API contracts |
 | [logging-error-policy.md](logging-error-policy.md) | Safe logs and error semantics |
 | [development-process.md](development-process.md) | Gated incremental delivery process |
 | [development-progress.md](development-progress.md) | Factual progress and verification log |

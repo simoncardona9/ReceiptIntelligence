@@ -48,6 +48,11 @@ provider-neutral domain contracts.
 
 Initial contract candidates, to be finalized per slice:
 
+Authentication and workspace contracts are defined in
+[auth-api.md](auth-api.md). These endpoints keep identity and membership writes
+inside transactional application services; session cookies are opaque and
+workspace selection is validated against the caller's memberships.
+
 - `POST /api/v1/receipts` — upload/stage a source.
 - `POST /api/v1/receipts/{id}/extraction-runs` — request extraction.
 - `GET /api/v1/receipts/{id}` — source, proposal, review state, and safe evidence.

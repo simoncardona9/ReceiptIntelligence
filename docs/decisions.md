@@ -137,3 +137,13 @@ database implementation. Both are replaceable:
   Drizzle-specific types.
 - Replacing either system requires adapter tests, migration/reconciliation
   evidence where data is affected, and an explicit architecture decision.
+
+## Authentication implementation details
+
+These implementation choices apply to Slice 1.2: email addresses are trimmed
+and normalized to lowercase; passwords accept 12–128 characters and are stored
+as scrypt hashes; sessions use random 256-bit tokens with only SHA-256 hashes
+stored in the database, seven-day expiry, revocation, and HttpOnly/SameSite=Lax
+cookies that are Secure in production. Mutating browser requests require a
+same-origin `Origin` header. Password recovery and email verification remain
+deferred because no recovery or mail provider is defined.

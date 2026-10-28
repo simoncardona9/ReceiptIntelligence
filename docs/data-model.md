@@ -5,7 +5,16 @@
 ### Workspace, user, membership, and session
 
 The workspace is the tenant boundary. Membership assigns a role and every
-receipt query is scoped by workspace. Sessions store only hashed opaque tokens.
+receipt query is scoped by workspace. Users have unique normalized emails and
+scrypt password hashes. Sessions store only SHA-256 hashes of random opaque
+tokens, with expiry, revocation, and an optional active workspace selection.
+
+### AccessRequest
+
+An access request links a registered user to a workspace and moves from pending
+to approved or declined only through an owner decision. Approval creates the
+membership and audit event atomically. At most one pending request exists for
+the same user and workspace.
 
 ### ReceiptSource
 

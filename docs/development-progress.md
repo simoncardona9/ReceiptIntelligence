@@ -1,14 +1,20 @@
 # Development Progress
 
-## Current state — Slice 1.1 delivered
+## Current state — Slices 1.1 and 1.2 delivered
 
+- Step 1 development is on branch `step-1-secure-foundation`, created from
+  `main`; approved Step 1 slices will use this same branch.
 - Slice 1.1 was approved by the user's explicit `go` instruction and implemented
   on 2026-10-28.
+- Slice 1.2 was approved by the user's request to start the next slice and
+  implemented on 2026-10-28.
 - The repository now has a TypeScript/Next.js shell, validated local
   configuration, PostgreSQL Compose service, dependency health endpoint,
-  quality commands, and synthetic fixtures.
-- No business entities, migrations, receipt upload, authentication, extraction,
-  production credentials, or real receipt data have been created.
+  account authentication, workspace membership/access requests, quality
+  commands, and synthetic fixtures.
+- Slice 1.2 adds the first migration for identity/workspace state. No receipt
+  tables, upload, extraction, production credentials, or real receipt data have
+  been created.
 
 ## Definition record
 
@@ -16,7 +22,7 @@
   extraction boundary, review rules, categories/products, export behavior, and
   ProyectoFinanzas integration direction.
 - The complete decision record is in [decisions.md](decisions.md).
-- Added 25 vertical slices to the roadmap; Slice 1.1 is approved and
+- Added 25 vertical slices to the roadmap; Slices 1.1 and 1.2 are approved and
   implemented, while later slices remain unapproved.
 - Added detailed outcomes, boundaries, dependencies, risks, and acceptance
   criteria for all 25 slices in [slice-plan.md](slice-plan.md).
@@ -61,3 +67,18 @@
   only the variable name and safe validation message.
 - `.env` was created from `.env.example` with synthetic local development
   values; `.env` is excluded from Git and Docker build contexts.
+
+## Step 1 — Slice 1.2 verification
+
+- `pnpm check` passes: formatting, ESLint, TypeScript, 15 unit tests, and the
+  Next.js production build.
+- PostgreSQL migration `0001_auth_workspaces.sql` applied successfully and a
+  second `pnpm db:migrate` run exited successfully without reapplying it.
+- `pnpm smoke:auth` passes against the Compose runtime with synthetic accounts.
+  It covers UI route availability, registration/login, duplicate-account
+  privacy, session cookies and revocation, workspace creation/idempotent retry,
+  membership roles, access request retries and decisions, owner-only access,
+  cross-workspace rejection, same-origin enforcement, multi-workspace
+  selection, and append-only audit enforcement.
+- No real email, password, session token, receipt, or financial data is used by
+  the smoke check; its accounts remain in the local PostgreSQL volume.
