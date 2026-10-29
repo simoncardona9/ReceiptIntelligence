@@ -6,7 +6,7 @@ import { requireWorkspacePermission } from "@/server/auth/authorization";
 export type StagedReceipt = {
   id: string;
   workspaceId: string;
-  status: "staged";
+  status: "staged" | "processing" | "failed" | "extracted" | "review";
   sourceIds: string[];
   createdAt: string;
 };
@@ -30,7 +30,7 @@ export function merchantKey(value: string): string {
 type ReceiptRow = {
   id: string;
   workspaceId: string;
-  status: "staged";
+  status: StagedReceipt["status"];
   createdAt: Date;
 };
 

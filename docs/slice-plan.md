@@ -386,6 +386,27 @@ output is not yet approved or exported.
 
 **Dependencies/risk:** 3.2; concurrency, cancellation, and recovery risk.
 
+**Status:** Approved by the user's request to complete all Step 3 slices and
+implemented on `step-3-local-extraction` on 2026-10-29.
+
+**Implementation plan:** Add persistent job/control/evidence tables and
+append-only events; workspace-scoped submission, status, retry, priority,
+cancel, pause, and resume APIs; a separate one-at-a-time local worker process;
+five-attempt backoff and restart recovery; in-app status and opt-in browser
+notification. Run migration retry, authorization/state tests, and synthetic
+database smoke checks before promoting Slice 3.4.
+
+**Invalid cases:** foreign/missing receipt or job, viewer mutation,
+editor cancel/pause, conflicting request key, duplicate active job, retry of
+non-failed job, priority outside bounds, concurrent workers, cancellation or
+pause during processing, stale running state after restart, and resource failure.
+State and event writes must commit together; cancelled/stopped work must not
+retain partial OCR evidence.
+
+**Data/security risk:** provider-neutral OCR text is sensitive and stays in
+workspace-scoped database evidence. Queue errors and events contain only safe
+codes and identifiers. Manual retry is explicit after the fifth failure.
+
 ### Slice 3.4 — Canonical normalization
 
 **Outcome:** OCR evidence becomes a provider-neutral proposal for receipt and

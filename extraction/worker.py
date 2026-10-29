@@ -110,7 +110,9 @@ def tesseract_regions(path: Path, width: int, height: int) -> list[dict]:
         raise WorkerFailure("ENGINE_UNAVAILABLE") from None
     except subprocess.TimeoutExpired:
         raise WorkerFailure("ENGINE_TIMEOUT", True) from None
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as error:
+        if error.returncode in (-9, 137):
+            raise WorkerFailure("RESOURCE_FAILURE", True) from None
         raise WorkerFailure("ENGINE_FAILED", True) from None
     try:
         rows = csv.DictReader(io.StringIO(result.stdout.decode("utf-8")), delimiter="\t")
@@ -171,6 +173,8 @@ def paddle_regions(path: Path, width: int, height: int, device: str) -> list[dic
         return regions
     except ImportError:
         raise WorkerFailure("ENGINE_UNAVAILABLE") from None
+    except MemoryError:
+        raise WorkerFailure("RESOURCE_FAILURE", True) from None
     except WorkerFailure:
         raise
     except Exception:

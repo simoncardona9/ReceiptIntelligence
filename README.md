@@ -24,7 +24,7 @@ Compose network. The example credentials are local development values and must
 not be reused elsewhere.
 
 The Compose startup applies pending database migrations before starting the
-app and creates the optional bootstrap owner on first run. Configure
+app, starts the local extraction worker, and creates the optional bootstrap owner on first run. Configure
 `BOOTSTRAP_OWNER_EMAIL` and `BOOTSTRAP_OWNER_PASSWORD` in `.env` to choose the
 login; `BOOTSTRAP_WORKSPACE_NAME` defaults to `Casa`. The example values are
 synthetic local credentials only. Bootstrap is idempotent and never changes an
@@ -51,6 +51,8 @@ Run `pnpm db:migrate` to apply pending migrations manually. With the Compose
 runtime running, `pnpm smoke:auth` exercises registration, sessions, workspace
 creation and selection, access requests, owner decisions, and safe retries using
 synthetic accounts. It leaves those synthetic accounts in the local database.
+`pnpm smoke:extraction` exercises the local OCR queue with a synthetic image
+when run inside Compose with `APP_BASE_URL=http://web:3000`.
 
 All bundled examples are synthetic. Do not place receipts, receipt-derived
 values, credentials, or production configuration in this repository.

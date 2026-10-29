@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 type Entry = {
   id: string;
   origin: "receipt" | "manual";
-  status: "staged";
+  status: "staged" | "processing" | "failed" | "extracted" | "review";
   createdAt: string;
   merchant: string | null;
   sourceCount: number;
@@ -39,8 +39,12 @@ export default function InboxPage() {
       <Link href="/workspaces">← Espacios de trabajo</Link>
       <h1>Bandeja de recibos y gastos</h1>
       <p className="muted">
-        Se muestran hasta 100 registros recientes de este espacio. Hoy solo
-        existe el estado «en espera».
+        Se muestran hasta 100 registros recientes de este espacio.
+      </p>
+      <p>
+        <Link href={`/workspaces/${workspaceId}/extraction`}>
+          Ver cola de extracción
+        </Link>
       </p>
       {error && (
         <p role="alert" className="error">
@@ -61,8 +65,17 @@ export default function InboxPage() {
                   : "Gasto manual")}
             </h2>
             <p>
-              {entry.origin === "receipt" ? "Recibo" : "Gasto manual"} · En
-              espera · {new Date(entry.createdAt).toLocaleString("es-UY")}
+              {entry.origin === "receipt" ? "Recibo" : "Gasto manual"} ·{" "}
+              {
+                {
+                  staged: "En espera",
+                  processing: "Procesando",
+                  failed: "Falló",
+                  extracted: "Extraído",
+                  review: "Para revisar",
+                }[entry.status]
+              }{" "}
+              · {new Date(entry.createdAt).toLocaleString("es-UY")}
             </p>
             <p className="muted">
               {entry.sourceCount} archivo(s) · ID: {entry.id}

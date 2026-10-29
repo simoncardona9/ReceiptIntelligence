@@ -1,5 +1,23 @@
 # Development Progress
 
+## Step 3 — Slice 3.3 delivered
+
+- Added migration `0006_extraction_queue.sql`, workspace-scoped queue APIs,
+  role-aware status screen, owner queue controls, opt-in browser notification,
+  and a separate Compose worker. A global advisory lock enforces one worker at
+  a time; run tokens prevent stale/cancelled work from storing evidence.
+- Queue actions and state transitions are transactional with append-only audit.
+  Five attempts use 1/2/4/8-minute delays. Restart recovery consumes the prior
+  attempt; resource failure pauses the workspace and fails its running job.
+- `pnpm check` passed with 41 TypeScript tests, 11 Python OCR tests, and the
+  production build. Compose built the local Tesseract/Spanish worker image.
+  Migration `0006` applied, and a repeated migration was a no-op. Synthetic
+  API smoke passed for role enforcement, retries, idempotency, cancellation,
+  OCR completion, evidence, and immutable audit. With the worker stopped,
+  database smoke passed for backoff through attempt five, recovery, resource
+  pause, stop, stale-result rejection, and manual retry. The web service was
+  stopped for the production build and restarted afterward.
+
 ## Step 3 — Slice 3.2 delivered
 
 - Added a versioned local OCR worker contract and replaceable TypeScript

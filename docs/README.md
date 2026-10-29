@@ -12,6 +12,7 @@ It must be reviewed before implementation starts.
 | [technology-stack.md](technology-stack.md)                 | Technology decisions and deferred choices                             |
 | [ocr-evaluation.md](ocr-evaluation.md)                     | Local OCR candidates, boundary, and benchmark plan                    |
 | [extraction-worker.md](extraction-worker.md)               | Versioned local OCR worker protocol and adapters                       |
+| [extraction-queue-api.md](extraction-queue-api.md)           | Persistent extraction queue API and lifecycle                          |
 | [data-model.md](data-model.md)                             | Entities, ownership, and provenance                                   |
 | [business-rules.md](business-rules.md)                     | Extraction, review, correction, and financial rules                   |
 | [security-privacy.md](security-privacy.md)                 | Access, retention, privacy, and threat controls                       |

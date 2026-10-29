@@ -14,6 +14,8 @@ const appConfigSchema = z
       .string()
       .min(1)
       .default("./.receipt-storage/private"),
+    OCR_ENGINE: z.enum(["paddle", "tesseract"]).default("tesseract"),
+    OCR_DEVICE: z.enum(["cpu", "gpu"]).default("cpu"),
     BOOTSTRAP_OWNER_EMAIL: z.preprocess(
       (value) => (value === "" ? undefined : value),
       z.string().trim().toLowerCase().pipe(z.email().max(254)).optional(),
@@ -25,6 +27,13 @@ const appConfigSchema = z
     BOOTSTRAP_WORKSPACE_NAME: z.string().trim().min(1).max(80).default("Casa"),
   })
   .superRefine((value, context) => {
+    if (value.OCR_ENGINE === "tesseract" && value.OCR_DEVICE === "gpu") {
+      context.addIssue({
+        code: "custom",
+        path: ["OCR_DEVICE"],
+        message: "GPU requires the PaddleOCR engine",
+      });
+    }
     if (
       Boolean(value.BOOTSTRAP_OWNER_EMAIL) !==
       Boolean(value.BOOTSTRAP_OWNER_PASSWORD)
@@ -46,6 +55,8 @@ export type AppConfig = {
   databaseUrl: string;
   port: number;
   sourceStorageDirectory: string;
+  ocrEngine: "paddle" | "tesseract";
+  ocrDevice: "cpu" | "gpu";
   bootstrapOwner: {
     email: string;
     password: string;
@@ -77,6 +88,8 @@ export function validateAppConfig(environment: Environment): ConfigValidation {
       databaseUrl: parsed.data.DATABASE_URL,
       port: parsed.data.PORT,
       sourceStorageDirectory: parsed.data.SOURCE_STORAGE_DIRECTORY,
+      ocrEngine: parsed.data.OCR_ENGINE,
+      ocrDevice: parsed.data.OCR_DEVICE,
       bootstrapOwner:
         parsed.data.BOOTSTRAP_OWNER_EMAIL &&
         parsed.data.BOOTSTRAP_OWNER_PASSWORD

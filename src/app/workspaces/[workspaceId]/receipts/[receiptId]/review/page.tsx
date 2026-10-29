@@ -5,7 +5,11 @@ import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-type Receipt = { id: string; status: "staged"; sourceIds: string[] };
+type Receipt = {
+  id: string;
+  status: "staged" | "processing" | "failed" | "extracted" | "review";
+  sourceIds: string[];
+};
 
 export default function SourceReviewPage() {
   const { workspaceId, receiptId } = useParams<{
@@ -22,6 +26,7 @@ export default function SourceReviewPage() {
   const [rotation, setRotation] = useState(0);
   const [crop, setCrop] = useState(0);
   const [error, setError] = useState("");
+  const [role, setRole] = useState<"owner" | "editor" | "viewer">("viewer");
 
   const loadReceipt = useCallback(async () => {
     try {
@@ -36,6 +41,16 @@ export default function SourceReviewPage() {
       if (!response.ok) throw new Error();
       const body = (await response.json()) as { receipt: Receipt };
       setReceipt(body.receipt);
+      const queueResponse = await fetch(
+        `/api/workspaces/${workspaceId}/extraction-jobs`,
+        { cache: "no-store" },
+      );
+      if (queueResponse.ok) {
+        const queueBody = (await queueResponse.json()) as {
+          queue: { role: "owner" | "editor" | "viewer" };
+        };
+        setRole(queueBody.queue.role);
+      }
     } catch {
       setError("No se pudo abrir el recibo.");
     }
@@ -46,6 +61,21 @@ export default function SourceReviewPage() {
   }, [loadReceipt]);
 
   const sourceId = receipt?.sourceIds[index];
+  async function submitExtraction() {
+    try {
+      const response = await fetch(
+        `/api/workspaces/${workspaceId}/receipts/${receiptId}/extraction-jobs`,
+        {
+          method: "POST",
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+        },
+      );
+      if (!response.ok) throw new Error();
+      router.push(`/workspaces/${workspaceId}/extraction`);
+    } catch {
+      setError("No se pudo solicitar la extracción.");
+    }
+  }
   useEffect(() => {
     if (!sourceId) return;
     let objectUrl = "";
@@ -83,8 +113,7 @@ export default function SourceReviewPage() {
       <Link href={`/workspaces/${workspaceId}/inbox`}>← Bandeja</Link>
       <h1>Revisar fuente</h1>
       <p>
-        Recibo {receiptId} ·{" "}
-        {receipt?.status === "staged" ? "En espera" : "Cargando…"}
+        Recibo {receiptId} · {receipt?.status ?? "Cargando…"}
       </p>
       {error && (
         <p role="alert" className="error">
@@ -97,6 +126,15 @@ export default function SourceReviewPage() {
             Archivo {index + 1} de {receipt.sourceIds.length}
           </p>
           <div className="actions">
+            <Link href={`/workspaces/${workspaceId}/extraction`}>
+              Ver cola de extracción
+            </Link>
+            {role !== "viewer" &&
+              ["staged", "failed", "extracted"].includes(receipt.status) && (
+                <button type="button" onClick={() => void submitExtraction()}>
+                  Procesar recibo
+                </button>
+              )}
             <button
               type="button"
               disabled={index === 0}

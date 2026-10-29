@@ -39,6 +39,8 @@ describe("application configuration", () => {
       databaseUrl: "postgresql://receipt:synthetic@localhost:5432/receipts",
       port: 4321,
       sourceStorageDirectory: "./.receipt-storage/private",
+      ocrEngine: "tesseract",
+      ocrDevice: "cpu",
       bootstrapOwner: null,
     });
   });
@@ -81,5 +83,18 @@ describe("application configuration", () => {
       );
       expect(result.errors.join(" ")).not.toContain("owner@example.invalid");
     }
+  });
+
+  it("requires PaddleOCR for optional GPU processing", () => {
+    const result = validateAppConfig({
+      DATABASE_URL: "postgresql://receipt:synthetic@localhost/db",
+      OCR_ENGINE: "tesseract",
+      OCR_DEVICE: "gpu",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success)
+      expect(result.errors).toContain(
+        "OCR_DEVICE: GPU requires the PaddleOCR engine",
+      );
   });
 });
