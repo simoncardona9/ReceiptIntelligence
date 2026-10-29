@@ -84,6 +84,10 @@ export class PostgresSourceRepository implements SourceRepository {
         "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
         [`source:${input.workspaceId}:${input.uploadedBy}:${idempotencyKey}`],
       );
+      await client.query(
+        "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+        [`source-content:${input.workspaceId}:${input.contentHash}`],
+      );
       const previous = await client.query<{
         contentHash: string;
         sourceId: string;
@@ -116,6 +120,29 @@ export class PostgresSourceRepository implements SourceRepository {
             "Source file not found.",
           );
         return { source: toSource(existing.rows[0]), created: false };
+      }
+      const sameContent = await client.query<SourceRow>(
+        `SELECT id, workspace_id AS "workspaceId", storage_key AS "storageKey",
+          content_hash AS "contentHash", media_type AS "mediaType", original_filename AS "originalFilename",
+          byte_size AS "byteSize", uploaded_by AS "uploadedBy", uploaded_at AS "uploadedAt",
+          removed_at AS "removedAt", removed_by AS "removedBy"
+         FROM source_files WHERE workspace_id = $1 AND content_hash = $2 AND removed_at IS NULL
+         ORDER BY uploaded_at, id LIMIT 1`,
+        [input.workspaceId, input.contentHash],
+      );
+      if (sameContent.rows[0]) {
+        await client.query(
+          `INSERT INTO source_upload_idempotency (workspace_id, actor_user_id, idempotency_key, content_hash, source_file_id)
+           VALUES ($1,$2,$3,$4,$5)`,
+          [
+            input.workspaceId,
+            input.uploadedBy,
+            idempotencyKey,
+            input.contentHash,
+            sameContent.rows[0].id,
+          ],
+        );
+        return { source: toSource(sameContent.rows[0]), created: false };
       }
       const result = await client.query<SourceRow>(
         `INSERT INTO source_files

@@ -1,5 +1,23 @@
 # Development Progress
 
+## Step 2 — Slice 2.1 delivered
+
+- Created branch `step-2-receipt-intake` from `main` on 2026-10-29.
+- Added staged receipt/source grouping tables, an atomic intake audit event,
+  content-hash-based exact duplicate handling, and scoped create/read APIs.
+- Formatting, lint, TypeScript, and 37 tests pass. The production build passed
+  after a transient Next.js TypeScript configuration parse failure on its first
+  rerun. Migration `0003_receipt_intake.sql` applied to the local Compose
+  database, and a retry completed without reapplying it.
+- Added a Spanish upload/camera intake screen. Exact source content now reuses
+  the original live source within a workspace. `pnpm smoke:intake` passed against
+  Compose, checking source/receipt duplicates, retries, ordered grouping,
+  validation, workspace scope, and immutable intake audit. The existing
+  `pnpm smoke:auth` suite passed after the source change.
+- `pnpm check` passes with 37 unit tests and production build. The intake
+  migration is retry-safe. No later slice has started; the Version 1 system
+  acceptance check remains a Step 6.5 task.
+
 ## Current state — Slices 1.1–1.4 delivered
 
 - Step 1 development is on branch `step-1-secure-foundation`, created from

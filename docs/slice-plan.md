@@ -212,6 +212,13 @@ separate slices.
 
 **Dependencies/risk:** 1.4; file integrity and duplicate risk.
 
+**Status:** Implemented on the Step 2 branch on 2026-10-29. Source uploads
+deduplicate live exact content per workspace; an authenticated owner/editor can
+stage an ordered group of up to 20 sources through the API or Spanish UI.
+The source and receipt operations have independent idempotency keys, and the
+receipt transaction writes its audit event atomically. Synthetic database
+smoke tests cover duplicates, retries, validation, scope, order, and audit.
+
 ### Slice 2.2 — Likely-duplicate review
 
 **Outcome:** A user can decide whether a likely duplicate is the same receipt.

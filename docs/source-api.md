@@ -26,7 +26,10 @@ return `404 SOURCE_NOT_FOUND`; members lacking edit permission receive
 size returns a stable `400` or `413` error. Infrastructure errors return a
 generic `500 INTERNAL_ERROR`. Source metadata and audit history remain after
 binary removal. This API is only a storage boundary; receipt grouping,
-duplicate detection, extraction, preview, and approval belong to later slices.
+receipt grouping, extraction, preview, and approval belong to later slices.
+Since Slice 2.1, an exact-content upload in the same workspace returns the
+existing live source rather than creating another source or upload audit event.
+This also applies when the new upload uses a different idempotency key.
 
 Example upload uses synthetic bytes only:
 

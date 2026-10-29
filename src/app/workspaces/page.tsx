@@ -247,6 +247,13 @@ export default function WorkspacesPage() {
                 )}
               </div>
               <p className="muted">ID para solicitar acceso: {workspace.id}</p>
+              {workspace.role !== "viewer" && (
+                <p>
+                  <Link href={`/workspaces/${workspace.id}/intake`}>
+                    Cargar recibo
+                  </Link>
+                </p>
+              )}
 
               {workspace.role === "owner" && (
                 <section aria-label={`Solicitudes para ${workspace.name}`}>
