@@ -229,8 +229,93 @@ async function run() {
     404,
     "foreign workspace",
   );
+  const manualPath = `${path}/manual-expenses`;
+  const manualFields = {
+    merchant: "Gasto Sintético",
+    date: "2026-10-29",
+    totalMinor: 1500,
+    currency: "UYU",
+    categoryName: "Pruebas",
+    lines: [
+      {
+        description: "Artículo de prueba",
+        quantityMilli: 1000,
+        totalMinor: 1500,
+      },
+    ],
+  };
+  const manualKey = randomUUID();
+  const manual = await json(
+    manualPath,
+    "POST",
+    cookie,
+    manualFields,
+    manualKey,
+  );
+  expect(manual.status, 201, "manual expense create");
+  const manualId = (manual.data.expense as { id: string }).id;
+  const manualRetry = await json(
+    manualPath,
+    "POST",
+    cookie,
+    manualFields,
+    manualKey,
+  );
+  expect(manualRetry.status, 200, "manual expense retry");
+  if ((manualRetry.data.expense as { id: string }).id !== manualId)
+    throw new Error("Manual expense retry duplicated the entry");
+  expect(
+    (
+      await json(
+        manualPath,
+        "POST",
+        cookie,
+        { ...manualFields, totalMinor: 1600 },
+        manualKey,
+      )
+    ).status,
+    409,
+    "manual key conflict",
+  );
+  expect(
+    (
+      await json(
+        manualPath,
+        "POST",
+        cookie,
+        { ...manualFields, totalMinor: -1 },
+        randomUUID(),
+      )
+    ).status,
+    400,
+    "manual amount validation",
+  );
+  const manualRead = await json(`${manualPath}/${manualId}`, "GET", cookie);
+  expect(manualRead.status, 200, "manual expense read");
+  if (
+    (manualRead.data.expense as { origin: string }).origin !== "manual" ||
+    "sourceIds" in (manualRead.data.expense as object)
+  )
+    throw new Error("Manual expense implied source provenance");
+  expect(
+    (
+      await json(
+        `/api/workspaces/${randomUUID()}/manual-expenses/${manualId}`,
+        "GET",
+        cookie,
+      )
+    ).status,
+    404,
+    "foreign manual expense",
+  );
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   try {
+    const manualAudit = await pool.query<{ count: string }>(
+      "SELECT count(*)::text AS count FROM manual_expense_audit_events WHERE expense_id = $1",
+      [manualId],
+    );
+    if (manualAudit.rows[0]?.count !== "1")
+      throw new Error("Manual expense audit duplicated or missing");
     const retained = await pool.query<{ count: string }>(
       `SELECT count(*)::text AS count FROM receipt_sources
        WHERE receipt_id = ANY($1::uuid[])`,

@@ -252,6 +252,12 @@ export default function WorkspacesPage() {
                   <Link href={`/workspaces/${workspace.id}/intake`}>
                     Cargar recibo
                   </Link>
+                  {" · "}
+                  <Link
+                    href={`/workspaces/${workspace.id}/manual-expenses/new`}
+                  >
+                    Crear gasto manual
+                  </Link>
                 </p>
               )}
 

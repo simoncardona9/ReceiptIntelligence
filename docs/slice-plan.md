@@ -256,6 +256,17 @@ they follow approval rules; they can be searched and exported after approval.
 
 **Dependencies/risk:** 1.3; financial-entry correctness.
 
+**Step 2 acceptance boundary approved on 2026-10-29:** Create and read a
+source-free staged manual expense with the fields and optional lines required
+for later review. Preserve manual origin and a single creation audit event;
+never imply receipt or extraction provenance. Approval, search, and export
+operations belong to Steps 4–6. Invalid cases include missing/foreign IDs,
+viewer creation, invalid money/date/currency/line values, and conflicting
+idempotency retries. Verify with `pnpm check`, migration retry, and synthetic
+database smoke checks.
+
+**Status:** Implemented on the Step 2 branch on 2026-10-29.
+
 ### Slice 2.4 — Inbox and source review
 
 **Outcome:** A user can find staged, processing, blocked, failed, rejected, and

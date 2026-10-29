@@ -20,6 +20,7 @@ It must be reviewed before implementation starts.
 | [source-api.md](source-api.md)                             | Private source-file storage API contract                              |
 | [receipt-intake-api.md](receipt-intake-api.md)               | Staged receipt intake API and current limits                          |
 | [duplicate-api.md](duplicate-api.md)                         | Likely duplicate suggestions and decisions                            |
+| [manual-expense-api.md](manual-expense-api.md)               | Source-free manual expense intake                                     |
 | [logging-error-policy.md](logging-error-policy.md)         | Safe logs and error semantics                                         |
 | [development-process.md](development-process.md)           | Gated incremental delivery process                                    |
 | [development-progress.md](development-progress.md)         | Factual progress and verification log                                 |

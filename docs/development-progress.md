@@ -1,5 +1,15 @@
 # Development Progress
 
+## Step 2 — Slice 2.3 delivered
+
+- Added source-free manual expense and line-item tables, an explicit manual
+  origin in the API, audited and retry-safe creation, scoped read, and a Spanish
+  creation screen. Approval and export remain assigned to Steps 4–6.
+- Migration `0005_manual_expenses.sql` applied locally. `pnpm check` passed
+  with 37 unit tests and production build. `pnpm smoke:intake` passed with
+  synthetic creation, retry, invalid amount, cross-workspace, provenance, and
+  audit assertions.
+
 ## Step 2 — Slice 2.2 delivered
 
 - Added optional, user-entered intake facts for deterministic likely-duplicate
