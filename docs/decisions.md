@@ -16,6 +16,18 @@ with this document.
   a separate source type, not a receipt format.
 - Version 1 is intended for 2–5 users and fewer than 500 receipts per month.
 
+## Local development account bootstrap
+
+- Local development may configure a bootstrap owner using paired
+  `BOOTSTRAP_OWNER_EMAIL` and `BOOTSTRAP_OWNER_PASSWORD` values in `.env`; the
+  optional workspace name defaults to `Casa`.
+- Startup creates the account, owner membership, workspace, and audit events
+  atomically only when the normalized email is new. Repeated startup does not
+  change an existing password or promote an existing account.
+- Bootstrap credentials are for local development only and are rejected in
+  production. Password values are never logged or committed outside the
+  synthetic `.env.example` values.
+
 ## Version 1 user flow
 
 ```text
@@ -137,3 +149,13 @@ database implementation. Both are replaceable:
   Drizzle-specific types.
 - Replacing either system requires adapter tests, migration/reconciliation
   evidence where data is affected, and an explicit architecture decision.
+
+## Authentication implementation details
+
+These implementation choices apply to Slice 1.2: email addresses are trimmed
+and normalized to lowercase; passwords accept 12–128 characters and are stored
+as scrypt hashes; sessions use random 256-bit tokens with only SHA-256 hashes
+stored in the database, seven-day expiry, revocation, and HttpOnly/SameSite=Lax
+cookies that are Secure in production. Mutating browser requests require a
+same-origin `Origin` header. Password recovery and email verification remain
+deferred because no recovery or mail provider is defined.

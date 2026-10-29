@@ -1,14 +1,28 @@
 # Development Progress
 
-## Current state — Slice 1.1 delivered
+## Current state — Slices 1.1–1.4 delivered
 
+- Step 1 development is on branch `step-1-secure-foundation`, created from
+  `main`; approved Step 1 slices will use this same branch.
 - Slice 1.1 was approved by the user's explicit `go` instruction and implemented
   on 2026-10-28.
+- Slice 1.2 was approved by the user's request to start the next slice and
+  implemented on 2026-10-28.
+- Slice 1.3 was approved by the user's request to start the next slice and
+  implemented on 2026-10-28.
+- Slice 1.4 was approved by the user's explicit `go` instruction and implemented
+  on 2026-10-28.
+- Added an environment-configured, one-time local owner bootstrap on 2026-10-29;
+  existing accounts are not reset or promoted.
 - The repository now has a TypeScript/Next.js shell, validated local
   configuration, PostgreSQL Compose service, dependency health endpoint,
-  quality commands, and synthetic fixtures.
-- No business entities, migrations, receipt upload, authentication, extraction,
-  production credentials, or real receipt data have been created.
+  account authentication, workspace membership/access requests, centralized
+  role permissions, typed audit events, private source storage, workspace-scoped
+  source access, optional environment-configured local owner bootstrap, quality
+  commands, and synthetic fixtures.
+- Slice 1.2 adds the first migration for identity/workspace state. No receipt
+  tables, upload, extraction, production credentials, or real receipt data have
+  been created.
 
 ## Definition record
 
@@ -16,7 +30,7 @@
   extraction boundary, review rules, categories/products, export behavior, and
   ProyectoFinanzas integration direction.
 - The complete decision record is in [decisions.md](decisions.md).
-- Added 25 vertical slices to the roadmap; Slice 1.1 is approved and
+- Added 25 vertical slices to the roadmap; Slices 1.1–1.4 are approved and
   implemented, while later slices remain unapproved.
 - Added detailed outcomes, boundaries, dependencies, risks, and acceptance
   criteria for all 25 slices in [slice-plan.md](slice-plan.md).
@@ -61,3 +75,60 @@
   only the variable name and safe validation message.
 - `.env` was created from `.env.example` with synthetic local development
   values; `.env` is excluded from Git and Docker build contexts.
+
+## Step 1 — Slice 1.2 verification
+
+- `pnpm check` passes: formatting, ESLint, TypeScript, 15 unit tests, and the
+  Next.js production build.
+- PostgreSQL migration `0001_auth_workspaces.sql` applied successfully and a
+  second `pnpm db:migrate` run exited successfully without reapplying it.
+- `pnpm smoke:auth` passes against the Compose runtime with synthetic accounts.
+  It covers UI route availability, registration/login, duplicate-account
+  privacy, session cookies and revocation, workspace creation/idempotent retry,
+  membership roles, access request retries and decisions, owner-only access,
+  cross-workspace rejection, same-origin enforcement, multi-workspace
+  selection, and append-only audit enforcement.
+- No real email, password, session token, receipt, or financial data is used by
+  the smoke check; its accounts remain in the local PostgreSQL volume.
+
+## Step 1 — Slice 1.3 verification
+
+- `pnpm check` passes: formatting, ESLint, TypeScript, 26 unit tests, and the
+  Next.js production build.
+- The permission matrix tests cover read, edit, and access management for owner,
+  editor, viewer, and absent membership, including stable 403/404 errors.
+- `docker compose config --quiet` and the retry-safe `pnpm db:migrate` pass.
+- `pnpm smoke:auth` passes with synthetic accounts, including owner/editor/
+  viewer enforcement, cross-workspace denial, and rejection of both audit-event
+  updates and deletes by PostgreSQL.
+- No migration or receipt-data schema changes were needed; existing state
+  mutation/audit transactions and database immutability trigger are reused.
+
+## Step 1 — Slice 1.4 verification
+
+- `pnpm check` passes: formatting, ESLint, TypeScript, 33 unit tests, and the
+  Next.js production build.
+- `docker compose config --quiet` passes; PostgreSQL and web services are
+  healthy. Migration `0002_source_storage.sql` applied successfully and a
+  second migration run exits successfully without reapplying it.
+- `pnpm smoke:auth` passes inside Compose with synthetic accounts and bytes. It
+  covers role enforcement for upload/download/removal, signature rejection,
+  upload idempotency and conflicting retries, cross-workspace source IDs,
+  non-member privacy,
+  download bytes, removal retry, preserved metadata, exactly-once operation
+  audit events, and database-enforced audit immutability.
+- Local adapter tests confirm UUID-only object paths, `0700` directory and
+  `0600` file permissions, and retry-safe physical removal. No real receipt or
+  financial data is used.
+
+## Local development owner bootstrap follow-up
+
+- `.env.example` now includes synthetic owner credentials and an optional
+  workspace name. Paired email/password settings are validated without echoing
+  values; an existing account is never reset or promoted.
+- Startup creates a new user, owner workspace, membership, and both audit events
+  in one transaction. Production startup rejects configured bootstrap
+  credentials.
+- `pnpm check` passes with 37 tests. The Compose bootstrap ran successfully,
+  a repeat made no changes, and the synthetic smoke suite authenticated with the
+  configured credentials and verified the owner workspace.

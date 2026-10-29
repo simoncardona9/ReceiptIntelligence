@@ -28,3 +28,4 @@ pnpm-debug.log*
 # Local temporary and receipt files
 tmp/
 uploads/
+.receipt-storage/

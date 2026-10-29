@@ -1,0 +1,120 @@
+:root {
+  color-scheme: light;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #17211b;
+  background: #f5f7f4;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  width: min(100% - 2rem, 760px);
+  margin: 3rem auto;
+  padding: 2rem;
+  background: #fff;
+  border: 1px solid #d8e0da;
+  border-radius: 12px;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+}
+
+form,
+.stack {
+  display: grid;
+  gap: 1rem;
+}
+
+label {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+input,
+select,
+button {
+  min-height: 2.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #8b9a90;
+  border-radius: 6px;
+  font: inherit;
+}
+
+button,
+a {
+  color: #075e3f;
+}
+
+button {
+  cursor: pointer;
+  background: #e9f5ed;
+  font-weight: 700;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+nav,
+.actions,
+.workspace-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.workspace-list,
+.request-list {
+  display: grid;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.workspace-card,
+.request-card {
+  padding: 1rem;
+  border: 1px solid #d8e0da;
+  border-radius: 8px;
+}
+
+.workspace-heading {
+  justify-content: space-between;
+}
+
+.muted {
+  color: #526258;
+}
+
+.error {
+  color: #a12020;
+}
+
+.success {
+  color: #075e3f;
+}
+
+:focus-visible {
+  outline: 3px solid #257e59;
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  main {
+    margin: 1rem auto;
+    padding: 1.25rem;
+  }
+}
