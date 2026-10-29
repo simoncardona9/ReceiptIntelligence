@@ -90,12 +90,18 @@ async function run() {
   );
   expect(second.status, 201, "second source upload");
   const sourceIds = [sourceId, second.data.source!.id];
+  const facts = {
+    merchant: "Mercado Sintético",
+    date: "2026-10-29",
+    totalMinor: 12345,
+    currency: "UYU",
+  };
   const key = randomUUID();
   const staged = await json(
     `${path}/receipts`,
     "POST",
     cookie,
-    { sourceIds },
+    { sourceIds, facts },
     key,
   );
   expect(staged.status, 201, "stage receipt");
@@ -118,6 +124,49 @@ async function run() {
     randomUUID(),
   );
   expect(exactDuplicate.status, 200, "exact receipt duplicate");
+  const third = await upload(
+    randomUUID(),
+    new Uint8Array([...bytes.slice(0, 8), 44]),
+  );
+  expect(third.status, 201, "third source upload");
+  const similar = await json(
+    `${path}/receipts`,
+    "POST",
+    cookie,
+    {
+      sourceIds: [third.data.source!.id],
+      facts: { ...facts, merchant: "Mercado Sintetico" },
+    },
+    randomUUID(),
+  );
+  expect(similar.status, 201, "similar receipt");
+  const similarId = (similar.data.receipt as { id: string }).id;
+  const duplicatesPath = `${path}/receipts/${receiptId}/duplicates`;
+  const suggestions = await json(duplicatesPath, "GET", cookie);
+  expect(suggestions.status, 200, "duplicate suggestions");
+  if (
+    !(suggestions.data.suggestions as { receiptId: string }[]).some(
+      (item) => item.receiptId === similarId,
+    )
+  )
+    throw new Error("Matching intake facts did not suggest a duplicate");
+  const decisionPath = `${duplicatesPath}/${similarId}`;
+  expect(
+    (await json(decisionPath, "POST", cookie, { decision: "same" })).status,
+    200,
+    "merge decision",
+  );
+  expect(
+    (await json(decisionPath, "POST", cookie, { decision: "same" })).status,
+    200,
+    "merge retry",
+  );
+  expect(
+    (await json(decisionPath, "POST", cookie, { decision: "different" }))
+      .status,
+    409,
+    "conflicting decision",
+  );
   expect(
     (
       await json(
@@ -182,6 +231,19 @@ async function run() {
   );
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   try {
+    const retained = await pool.query<{ count: string }>(
+      `SELECT count(*)::text AS count FROM receipt_sources
+       WHERE receipt_id = ANY($1::uuid[])`,
+      [[receiptId, similarId]],
+    );
+    if (retained.rows[0]?.count !== "3")
+      throw new Error("Duplicate decision lost source links");
+    const decisionAudit = await pool.query<{ count: string }>(
+      "SELECT count(*)::text AS count FROM receipt_duplicate_audit_events WHERE receipt_id = LEAST($1::uuid,$2::uuid) AND candidate_id = GREATEST($1::uuid,$2::uuid)",
+      [receiptId, similarId],
+    );
+    if (decisionAudit.rows[0]?.count !== "1")
+      throw new Error("Duplicate decision audit was duplicated or omitted");
     const count = await pool.query<{ count: string }>(
       "SELECT count(*)::text AS count FROM receipt_intake_audit_events WHERE receipt_id = $1",
       [receiptId],
@@ -206,7 +268,10 @@ async function run() {
   }
   console.info("Synthetic receipt intake smoke passed");
 }
-run().catch(() => {
-  console.error("Synthetic receipt intake smoke failed");
+run().catch((error: unknown) => {
+  console.error(
+    "Synthetic receipt intake smoke failed:",
+    error instanceof Error ? error.message : "unknown error",
+  );
   process.exitCode = 1;
 });

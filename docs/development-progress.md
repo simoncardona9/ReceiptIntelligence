@@ -1,5 +1,17 @@
 # Development Progress
 
+## Step 2 — Slice 2.2 delivered
+
+- Added optional, user-entered intake facts for deterministic likely-duplicate
+  matching. A review screen and workspace-scoped APIs list suggestions and
+  record an explicit `same` or `different` decision.
+- Decisions are retry-safe, conflicting decisions fail, and both receipt/source
+  histories remain. The decision and its append-only audit event commit together.
+- Migration `0004_likely_duplicates.sql` applied locally. `pnpm check` passed
+  with 37 unit tests and a production build; `pnpm smoke:intake` passed with
+  synthetic similar receipts and a decision retry. Final source-retention
+  assertions are included in the smoke script.
+
 ## Step 2 — Slice 2.1 delivered
 
 - Created branch `step-2-receipt-intake` from `main` on 2026-10-29.

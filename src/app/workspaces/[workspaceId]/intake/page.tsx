@@ -21,6 +21,10 @@ export default function ReceiptIntakePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [merchant, setMerchant] = useState("");
+  const [date, setDate] = useState("");
+  const [totalMinor, setTotalMinor] = useState("");
+  const [currency, setCurrency] = useState<"UYU" | "USD">("UYU");
 
   useEffect(() => {
     void fetch("/api/auth/session", { cache: "no-store" })
@@ -63,6 +67,11 @@ export default function ReceiptIntakePage() {
       setError("Elige entre 1 y 20 imágenes o PDF de hasta 10 MB cada uno.");
       return;
     }
+    const factParts = [merchant.trim(), date, totalMinor];
+    if (factParts.some(Boolean) && !factParts.every(Boolean)) {
+      setError("Completa comercio, fecha y total, o deja los tres vacíos.");
+      return;
+    }
     setBusy(true);
     try {
       const sourceIds: string[] = [];
@@ -93,7 +102,19 @@ export default function ReceiptIntakePage() {
           "Content-Type": "application/json",
           "Idempotency-Key": crypto.randomUUID(),
         },
-        body: JSON.stringify({ sourceIds }),
+        body: JSON.stringify({
+          sourceIds,
+          ...(merchant.trim() && date && totalMinor !== ""
+            ? {
+                facts: {
+                  merchant: merchant.trim(),
+                  date,
+                  totalMinor: Number(totalMinor),
+                  currency,
+                },
+              }
+            : {}),
+        }),
       });
       if (!staged.ok)
         throw new Error("No se pudo crear el recibo. Intenta nuevamente.");
@@ -156,16 +177,64 @@ export default function ReceiptIntakePage() {
             }}
           />
           <p className="muted">{files.length} archivo(s) seleccionados</p>
+          <fieldset>
+            <legend>Datos opcionales para detectar recibos parecidos</legend>
+            <label>
+              Comercio
+              <input
+                maxLength={160}
+                value={merchant}
+                onChange={(event) => setMerchant(event.target.value)}
+              />
+            </label>
+            <label>
+              Fecha del recibo
+              <input
+                type="date"
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+              />
+            </label>
+            <label>
+              Total en centésimos
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={totalMinor}
+                onChange={(event) => setTotalMinor(event.target.value)}
+              />
+            </label>
+            <label>
+              Moneda
+              <select
+                value={currency}
+                onChange={(event) =>
+                  setCurrency(event.target.value as "UYU" | "USD")
+                }
+              >
+                <option value="UYU">UYU</option>
+                <option value="USD">USD</option>
+              </select>
+            </label>
+          </fieldset>
           <button type="submit" disabled={busy}>
             {busy ? "Cargando…" : "Crear recibo en espera"}
           </button>
         </form>
       )}
       {receipt && (
-        <p role="status" className="success">
-          Recibo {receipt.id} en estado «en espera» con{" "}
-          {receipt.sourceIds.length} archivo(s).
-        </p>
+        <div role="status" className="success">
+          <p>
+            Recibo {receipt.id} en estado «en espera» con{" "}
+            {receipt.sourceIds.length} archivo(s).
+          </p>
+          <Link
+            href={`/workspaces/${workspaceId}/receipts/${receipt.id}/duplicates`}
+          >
+            Revisar posibles duplicados
+          </Link>
+        </div>
       )}
     </main>
   );

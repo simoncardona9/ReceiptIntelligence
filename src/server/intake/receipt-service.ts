@@ -11,6 +11,22 @@ export type StagedReceipt = {
   createdAt: string;
 };
 
+export type IntakeFacts = {
+  merchant: string;
+  date: string;
+  totalMinor: number;
+  currency: "UYU" | "USD";
+};
+
+export function merchantKey(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
 type ReceiptRow = {
   id: string;
   workspaceId: string;
@@ -26,6 +42,7 @@ export class ReceiptService {
     actorUserId: string;
     idempotencyKey: string;
     sourceIds: string[];
+    facts?: IntakeFacts;
   }): Promise<{ receipt: StagedReceipt; created: boolean }> {
     if (
       input.sourceIds.length < 1 ||
@@ -112,6 +129,22 @@ export class ReceiptService {
             "INSERT INTO receipt_intake_audit_events (id, workspace_id, actor_user_id, receipt_id, action) VALUES ($1,$2,$3,$4,'receipt_staged')",
             [randomUUID(), input.workspaceId, input.actorUserId, receiptId],
           );
+          if (input.facts) {
+            await client.query(
+              `INSERT INTO receipt_intake_facts
+               (receipt_id, workspace_id, merchant_key, receipt_date, total_minor, currency, entered_by)
+               VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+              [
+                receiptId,
+                input.workspaceId,
+                merchantKey(input.facts.merchant),
+                input.facts.date,
+                input.facts.totalMinor,
+                input.facts.currency,
+                input.actorUserId,
+              ],
+            );
+          }
           created = true;
         }
         await client.query(

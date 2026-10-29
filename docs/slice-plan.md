@@ -232,6 +232,16 @@ requires proposal data but does not perform extraction itself.
 
 **Dependencies/risk:** 2.1 and later 3.4 data; identity/reconciliation risk.
 
+**Step 2 acceptance boundary approved on 2026-10-29:** Use optional
+user-entered merchant/date/amount/currency intake hints. Match deterministically
+within a workspace. An explicit owner/editor decision links or dismisses the
+pair without deleting either record or source history. OCR-derived suggestions
+are deferred to Slice 3.4. Invalid cases include missing/foreign receipt IDs,
+non-matching pairs, self-pairs, viewer decisions, and conflicting retries.
+Verify with `pnpm check`, migration retry, and synthetic intake smoke tests.
+
+**Status:** Implemented on the Step 2 branch on 2026-10-29.
+
 ### Slice 2.3 — Manual expense
 
 **Outcome:** A user can create an expense without a receipt file using the same
