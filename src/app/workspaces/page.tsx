@@ -247,6 +247,24 @@ export default function WorkspacesPage() {
                 )}
               </div>
               <p className="muted">ID para solicitar acceso: {workspace.id}</p>
+              <p>
+                <Link href={`/workspaces/${workspace.id}/inbox`}>
+                  Abrir bandeja
+                </Link>
+              </p>
+              {workspace.role !== "viewer" && (
+                <p>
+                  <Link href={`/workspaces/${workspace.id}/intake`}>
+                    Cargar recibo
+                  </Link>
+                  {" · "}
+                  <Link
+                    href={`/workspaces/${workspace.id}/manual-expenses/new`}
+                  >
+                    Crear gasto manual
+                  </Link>
+                </p>
+              )}
 
               {workspace.role === "owner" && (
                 <section aria-label={`Solicitudes para ${workspace.name}`}>

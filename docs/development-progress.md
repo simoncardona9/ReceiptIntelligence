@@ -1,5 +1,73 @@
 # Development Progress
 
+## Step 2 — Slice 2.4 delivered
+
+- Added a workspace-scoped inbox combining staged receipts and manual expenses.
+  The Spanish list and detail pages navigate to source or manual review. Source
+  preview uses the private authorized download API and includes image zoom,
+  rotation, visual crop, and PDF page controls.
+- `pnpm check` passed with 37 unit tests and a production build. The synthetic
+  intake smoke suite passed with inbox membership, status, scope, and page
+  availability assertions. The full Step 2 check is recorded below.
+
+## Step 2 — Complete development check
+
+- `pnpm check` passed: formatting, lint, TypeScript, 37 unit tests, and the
+  production build. The Compose web service was stopped during the production
+  build because a concurrent Next.js dev process intermittently writes `.next`
+  and causes a TypeScript configuration parse error; it was restarted after
+  the build and returned to healthy state.
+- `docker compose config --quiet` passed. The database and web service reached
+  healthy state. A repeat `pnpm db:migrate` completed without reapplying
+  migrations `0003`–`0005`.
+- `pnpm smoke:auth` and `pnpm smoke:intake` passed in Compose with synthetic
+  data. Together they cover authentication, workspace roles, source storage,
+  exact and likely duplicates, retry conflicts, manual origin, inbox scope,
+  append-only audits, and the Step 2 page routes.
+- Step 2 supports staged records. Extraction, correction, approval, export,
+  and their later lifecycle statuses remain assigned to Steps 3–6. Browser PDF
+  preview depends on the browser's PDF viewer; download remains available.
+
+## Step 2 — Slice 2.3 delivered
+
+- Added source-free manual expense and line-item tables, an explicit manual
+  origin in the API, audited and retry-safe creation, scoped read, and a Spanish
+  creation screen. Approval and export remain assigned to Steps 4–6.
+- Migration `0005_manual_expenses.sql` applied locally. `pnpm check` passed
+  with 37 unit tests and production build. `pnpm smoke:intake` passed with
+  synthetic creation, retry, invalid amount, cross-workspace, provenance, and
+  audit assertions.
+
+## Step 2 — Slice 2.2 delivered
+
+- Added optional, user-entered intake facts for deterministic likely-duplicate
+  matching. A review screen and workspace-scoped APIs list suggestions and
+  record an explicit `same` or `different` decision.
+- Decisions are retry-safe, conflicting decisions fail, and both receipt/source
+  histories remain. The decision and its append-only audit event commit together.
+- Migration `0004_likely_duplicates.sql` applied locally. `pnpm check` passed
+  with 37 unit tests and a production build; `pnpm smoke:intake` passed with
+  synthetic similar receipts and a decision retry. Final source-retention
+  assertions are included in the smoke script.
+
+## Step 2 — Slice 2.1 delivered
+
+- Created branch `step-2-receipt-intake` from `main` on 2026-10-29.
+- Added staged receipt/source grouping tables, an atomic intake audit event,
+  content-hash-based exact duplicate handling, and scoped create/read APIs.
+- Formatting, lint, TypeScript, and 37 tests pass. The production build passed
+  after a transient Next.js TypeScript configuration parse failure on its first
+  rerun. Migration `0003_receipt_intake.sql` applied to the local Compose
+  database, and a retry completed without reapplying it.
+- Added a Spanish upload/camera intake screen. Exact source content now reuses
+  the original live source within a workspace. `pnpm smoke:intake` passed against
+  Compose, checking source/receipt duplicates, retries, ordered grouping,
+  validation, workspace scope, and immutable intake audit. The existing
+  `pnpm smoke:auth` suite passed after the source change.
+- `pnpm check` passes with 37 unit tests and production build. The intake
+  migration is retry-safe. No later slice has started; the Version 1 system
+  acceptance check remains a Step 6.5 task.
+
 ## Current state — Slices 1.1–1.4 delivered
 
 - Step 1 development is on branch `step-1-secure-foundation`, created from

@@ -212,6 +212,13 @@ separate slices.
 
 **Dependencies/risk:** 1.4; file integrity and duplicate risk.
 
+**Status:** Implemented on the Step 2 branch on 2026-10-29. Source uploads
+deduplicate live exact content per workspace; an authenticated owner/editor can
+stage an ordered group of up to 20 sources through the API or Spanish UI.
+The source and receipt operations have independent idempotency keys, and the
+receipt transaction writes its audit event atomically. Synthetic database
+smoke tests cover duplicates, retries, validation, scope, order, and audit.
+
 ### Slice 2.2 — Likely-duplicate review
 
 **Outcome:** A user can decide whether a likely duplicate is the same receipt.
@@ -224,6 +231,16 @@ all source files and histories; rejected suggestions remain separate. **Boundary
 requires proposal data but does not perform extraction itself.
 
 **Dependencies/risk:** 2.1 and later 3.4 data; identity/reconciliation risk.
+
+**Step 2 acceptance boundary approved on 2026-10-29:** Use optional
+user-entered merchant/date/amount/currency intake hints. Match deterministically
+within a workspace. An explicit owner/editor decision links or dismisses the
+pair without deleting either record or source history. OCR-derived suggestions
+are deferred to Slice 3.4. Invalid cases include missing/foreign receipt IDs,
+non-matching pairs, self-pairs, viewer decisions, and conflicting retries.
+Verify with `pnpm check`, migration retry, and synthetic intake smoke tests.
+
+**Status:** Implemented on the Step 2 branch on 2026-10-29.
 
 ### Slice 2.3 — Manual expense
 
@@ -239,6 +256,17 @@ they follow approval rules; they can be searched and exported after approval.
 
 **Dependencies/risk:** 1.3; financial-entry correctness.
 
+**Step 2 acceptance boundary approved on 2026-10-29:** Create and read a
+source-free staged manual expense with the fields and optional lines required
+for later review. Preserve manual origin and a single creation audit event;
+never imply receipt or extraction provenance. Approval, search, and export
+operations belong to Steps 4–6. Invalid cases include missing/foreign IDs,
+viewer creation, invalid money/date/currency/line values, and conflicting
+idempotency retries. Verify with `pnpm check`, migration retry, and synthetic
+database smoke checks.
+
+**Status:** Implemented on the Step 2 branch on 2026-10-29.
+
 ### Slice 2.4 — Inbox and source review
 
 **Outcome:** A user can find staged, processing, blocked, failed, rejected, and
@@ -252,6 +280,18 @@ change data; archived/rejected visibility follows decisions. **Boundary:** no
 field correction or approval logic beyond navigation.
 
 **Dependencies/risk:** 2.1–2.3; lifecycle clarity.
+
+**Step 2 acceptance boundary approved on 2026-10-29:** List the currently
+reachable staged receipt and manual-expense records with truthful origin and
+status, workspace scope, and role-aware navigation. Preview private image/PDF
+sources through the authorized download endpoint with read-only controls.
+Later processing, blocked, failed, rejected, approved, and archived states are
+introduced by their owning lifecycle slices. Invalid cases include missing or
+foreign workspace IDs, removed sources, absent sessions, and viewer mutation
+attempts. Verify with `pnpm check`, synthetic inbox/source smoke checks, and
+the complete Step 2 regression suite.
+
+**Status:** Implemented on the Step 2 branch on 2026-10-29.
 
 ## Step 3 — Local extraction and canonical proposal
 
