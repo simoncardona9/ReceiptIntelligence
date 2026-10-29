@@ -1,5 +1,23 @@
 # Development Progress
 
+## Step 3 — Slice 3.1 delivered
+
+- Created `step-3-local-extraction` from updated `main` on 2026-10-29.
+- Added five invented Spanish receipt cases across supermarket, restaurant,
+  fuel, and utility sources. A local generator creates image/PDF files and
+  expected field/line-item boxes outside version control; difficult cases
+  cover blur, skew, glare, length, multiple pages, and missing tax.
+- Added a versioned, local OCR-region benchmark command. It validates output,
+  scores receipt-level and line-item text evidence and location overlap, and
+  records per-case errors, latency, and sampled host RSS. Failed cases count as
+  missed evidence. Reports contain no source text or OCR text.
+- `pnpm check` passed with 37 TypeScript tests, 7 Python benchmark tests, and
+  the production build. The CLI generated all five sources under `/tmp` and
+  scored an empty synthetic engine response as 0/76 evidence lines with zero
+  command failures. No real OCR candidate was available locally, so no engine
+  accuracy or CPU/GPU comparison is claimed. This slice changes no database,
+  API, production extraction, or approval behavior.
+
 ## Step 2 — Slice 2.4 delivered
 
 - Added a workspace-scoped inbox combining staged receipts and manual expenses.

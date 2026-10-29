@@ -54,3 +54,7 @@ synthetic accounts. It leaves those synthetic accounts in the local database.
 
 All bundled examples are synthetic. Do not place receipts, receipt-derived
 values, credentials, or production configuration in this repository.
+
+For the synthetic local OCR evaluation fixture and benchmark, see
+[docs/ocr-evaluation.md](docs/ocr-evaluation.md). This is evaluation tooling;
+it does not process staged receipts in the application.

@@ -2,8 +2,8 @@
 
 This is the planning breakdown for Steps 1–6. These slices are ordered and
 reviewable; approve each one individually and give it a focused implementation
-plan before work starts. Slices 1.1–1.4 are implemented; no later slice is
-approved.
+plan before work starts. Slices 1.1–3.1 are implemented; Slice 3.2 and later
+slices are not approved.
 
 ## Step 1 — Secure foundation
 
@@ -310,6 +310,32 @@ committed. **Boundary:** evaluation only; no production extraction workflow.
 
 **Dependencies/risk:** 1.1; fixture quality determines engine choice.
 
+**Status:** Approved by the user's request to start Step 3 and implemented on
+`step-3-local-extraction` on 2026-10-29. Later Step 3 slices are not approved.
+
+**Implementation plan:**
+
+1. Define invented Spanish UYU/USD receipts for all four receipt types, with
+   field and line-item evidence, coordinates, and difficult-case tags. Generate
+   image/PDF sources locally; commit only text definitions and generator code.
+2. Add a provider-neutral benchmark command that runs one local OCR command per
+   source and validates versioned text-region output. Measure field and line
+   evidence recall, location overlap, errors, latency, and peak host memory.
+3. Support repeatable CPU and optional GPU runs, then compare named run reports
+   without choosing a production engine from synthetic results alone.
+4. Test scoring, malformed output, command failure/timeout, fixture generation,
+   and report privacy; document the run procedure and record verification.
+
+**Invalid cases:** unknown case IDs, missing or malformed prediction output,
+out-of-range page/coordinates/confidence, duplicate region IDs, command failure
+or timeout, and unavailable optional GPU hardware. The runner must return a
+safe error and never include raw OCR text in its report.
+
+**Data/security boundary:** the corpus contains invented values only and writes
+generated sources outside version control. This slice has no API, persistence,
+audit, production worker, extraction queue, or approval behavior. Benchmarked
+commands run locally and receive only the synthetic source path.
+
 ### Slice 3.2 — OCR adapter
 
 **Outcome:** A staged receipt can be processed locally into provider-neutral OCR
@@ -551,6 +577,6 @@ remaining limitations are documented. **Boundary:** no new product features.
 ## Planning status
 
 - Total planned slices: **25**.
-- Approved slices: **4** (1.1–1.4).
-- Implemented slices: **4** (1.1–1.4).
-- Later slices remain drafts and are not authorized for implementation.
+- Approved slices: **9** (1.1–3.1).
+- Implemented slices: **9** (1.1–3.1).
+- Slice 3.2 and later slices remain drafts and are not authorized for implementation.

@@ -22,7 +22,8 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"scripts/**/*.ts\" \"fixtures/**/*.json\" \"*.{json,mjs,mts,yml}\" compose.yaml README.md",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "test:ocr": "python3 -m unittest discover -s scripts -p 'test_ocr_*.py'",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:ocr && pnpm build"
   },
   "dependencies": {
     "dotenv": "16.6.1",
