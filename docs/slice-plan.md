@@ -2,7 +2,7 @@
 
 This is the planning breakdown for Steps 1–6. These slices are ordered and
 reviewable; approve each one individually and give it a focused implementation
-plan before work starts. Slices 1.1–3.1 are implemented; Slice 3.2 and later
+plan before work starts. Slices 1.1–3.4 are implemented; Slice 4.1 and later
 slices are not approved.
 
 ## Step 1 — Secure foundation
@@ -422,6 +422,26 @@ as approved data. **Boundary:** proposal remains unapproved.
 
 **Dependencies/risk:** 3.2–3.3; Spanish receipt parsing and monetary safety.
 
+**Status:** Approved by the user's request to complete all Step 3 slices and
+implemented on `step-3-local-extraction` on 2026-10-29.
+
+**Implementation plan:** Define provider-neutral proposal field/line contracts
+with exact text, normalized value, per-field confidence, and source-region
+evidence. Add deterministic Spanish UYU/USD money/date/quantity parsing,
+conflict and missing-field warnings, immutable proposal persistence in the
+successful queue transaction, scoped read API, and read-only proposal display.
+Run parser tests, migration retry, synthetic worker smoke, and a full Step 3
+regression check.
+
+**Invalid cases:** malformed amount/date/currency, inconsistent candidate
+values, missing merchant/total, ambiguous line grouping, invalid source
+coordinates, foreign proposal access, and stale/cancelled job completion. No
+normalization may create approved financial state or discard original text.
+
+**Data/security risk:** normalized values are proposals only; original OCR
+text and evidence stay workspace-scoped. Unsafe card-number text must not be
+copied into proposal fields or logs. No export or approval in this slice.
+
 ## Step 4 — Review, correction, and approval
 
 ### Slice 4.1 — Review workspace
@@ -617,6 +637,6 @@ remaining limitations are documented. **Boundary:** no new product features.
 ## Planning status
 
 - Total planned slices: **25**.
-- Approved slices: **9** (1.1–3.1).
-- Implemented slices: **9** (1.1–3.1).
-- Slice 3.2 and later slices remain drafts and are not authorized for implementation.
+- Approved slices: **12** (1.1–3.4).
+- Implemented slices: **12** (1.1–3.4).
+- Slice 4.1 and later slices remain drafts and are not authorized for implementation.

@@ -6,6 +6,7 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -19,7 +20,12 @@ MAX_SOURCE_BYTES = 10 * 1024 * 1024
 MAX_PAGES = 20
 MAX_PIXELS = 30_000_000
 ALLOWED_MEDIA = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
+CARD_PATTERN = re.compile(r"(?<!\d)(?:\d[ -]?){13,19}(?!\d)")
 Image.MAX_IMAGE_PIXELS = MAX_PIXELS
+
+
+def safe_ocr_text(value: str) -> str:
+    return CARD_PATTERN.sub("[REDACTED_CARD]", value)
 
 
 class WorkerFailure(Exception):
@@ -129,7 +135,7 @@ def tesseract_regions(path: Path, width: int, height: int) -> list[dict]:
             right = [int(row["left"]) + int(row["width"]) for row in words]
             bottom = [int(row["top"]) + int(row["height"]) for row in words]
             confidences = [max(0, min(100, float(row["conf"]))) for row in words]
-            regions.append({"id": str(index), "text": " ".join(row["text"] for row in words),
+            regions.append({"id": str(index), "text": safe_ocr_text(" ".join(row["text"] for row in words)),
                             "confidence": round(sum(confidences) / len(confidences) / 100, 4),
                             "box": normalized_box([min(x), min(y), max(right), max(bottom)], width, height)})
         return regions
@@ -168,7 +174,7 @@ def paddle_regions(path: Path, width: int, height: int, device: str) -> list[dic
             normalized = normalized_box([float(value) for value in box], width, height)
             if normalized is None or not isinstance(text, str) or not 0 <= float(score) <= 1:
                 raise WorkerFailure("ENGINE_OUTPUT_INVALID")
-            regions.append({"id": str(index), "text": text,
+            regions.append({"id": str(index), "text": safe_ocr_text(text),
                             "confidence": round(float(score), 4), "box": normalized})
         return regions
     except ImportError:

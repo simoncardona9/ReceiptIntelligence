@@ -9,6 +9,7 @@ import { LocalObjectStorage } from "../src/server/storage/local-object-storage";
 import { LocalWorkerExtractionAdapter } from "../src/server/extraction/local-worker-adapter";
 import { ExtractionFailure } from "../src/server/extraction/contracts";
 import { DomainError } from "../src/server/auth/contracts";
+import { normalizeExtraction } from "../src/server/extraction/normalization";
 
 const LOCK_ID = 74192832;
 const sleep = (milliseconds: number) =>
@@ -47,7 +48,7 @@ async function processJob(
     const ids = new Set(job.sources.map((source) => source.id));
     if (result.pages.some((page) => !ids.has(page.sourceId)))
       throw new ExtractionFailure("ENGINE_OUTPUT_INVALID", false);
-    await repository.complete(job, result);
+    await repository.complete(job, result, normalizeExtraction(result));
   } catch (error) {
     if (controller.signal.aborted) return;
     const failure =

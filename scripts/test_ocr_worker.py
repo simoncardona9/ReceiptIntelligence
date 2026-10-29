@@ -3,6 +3,7 @@
 from pathlib import Path
 import sys
 import tempfile
+import types
 import unittest
 from unittest.mock import patch
 
@@ -59,6 +60,34 @@ class WorkerTests(unittest.TestCase):
             with self.assertRaises(worker.WorkerFailure) as caught:
                 worker.paddle_regions(Path("unused"), 100, 100, "cpu")
         self.assertEqual(caught.exception.code, "ENGINE_UNAVAILABLE")
+
+    def test_payment_card_number_is_redacted_before_evidence_output(self):
+        self.assertEqual(worker.safe_ocr_text("TARJETA 4111 1111 1111 1111"),
+                         "TARJETA [REDACTED_CARD]")
+
+    def test_paddle_adapter_maps_local_prediction_and_gpu_selection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            model = Path(directory) / "model"
+            model.mkdir()
+            seen = {}
+            class FakePaddle:
+                def __init__(self, **kwargs):
+                    seen.update(kwargs)
+                def predict(self, _path):
+                    return [types.SimpleNamespace(json={"res": {
+                        "rec_texts": ["TOTAL UYU $ 20,00"], "rec_scores": [0.92],
+                        "rec_boxes": [[10, 20, 90, 40]],
+                    }})]
+            module = types.ModuleType("paddleocr")
+            module.PaddleOCR = FakePaddle
+            with patch.dict(worker.os.environ, {
+                "OCR_PADDLE_DETECTION_MODEL_DIR": str(model),
+                "OCR_PADDLE_RECOGNITION_MODEL_DIR": str(model),
+            }), patch.dict(sys.modules, {"paddleocr": module}):
+                regions = worker.paddle_regions(Path("unused.png"), 100, 100, "gpu")
+            self.assertEqual(seen["device"], "gpu")
+            self.assertEqual(regions[0]["box"], [0.1, 0.2, 0.9, 0.4])
+            self.assertEqual(regions[0]["confidence"], 0.92)
 
 
 if __name__ == "__main__":

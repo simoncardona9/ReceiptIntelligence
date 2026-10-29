@@ -3,6 +3,7 @@ import type { Pool, PoolClient } from "pg";
 import { DomainError, type WorkspaceRole } from "@/server/auth/contracts";
 import { requireWorkspacePermission } from "@/server/auth/authorization";
 import type { ExtractionResult } from "@/server/extraction/contracts";
+import type { Proposal } from "@/server/extraction/normalization";
 import type { SourceMediaType } from "@/server/storage/contracts";
 
 export type JobStatus =
@@ -565,10 +566,12 @@ export class PostgresExtractionQueueRepository {
         id: string;
         storageKey: string;
         mediaType: SourceMediaType;
+        removedAt: Date | null;
       }>(
-        `SELECT s.id, s.storage_key AS "storageKey", s.media_type AS "mediaType"
+        `SELECT s.id, s.storage_key AS "storageKey", s.media_type AS "mediaType",
+           s.removed_at AS "removedAt"
          FROM receipt_sources rs JOIN source_files s ON s.id = rs.source_file_id
-         WHERE rs.workspace_id = $1 AND rs.receipt_id = $2 AND s.removed_at IS NULL
+         WHERE rs.workspace_id = $1 AND rs.receipt_id = $2
          ORDER BY rs.position`,
         [job.workspaceId, job.receiptId],
       );
@@ -577,7 +580,13 @@ export class PostgresExtractionQueueRepository {
         receiptId: job.receiptId,
         workspaceId: job.workspaceId,
         runToken: token,
-        sources: sources.rows,
+        sources: sources.rows.some((source) => source.removedAt !== null)
+          ? []
+          : sources.rows.map(({ id, storageKey, mediaType }) => ({
+              id,
+              storageKey,
+              mediaType,
+            })),
       };
     });
   }
@@ -590,7 +599,11 @@ export class PostgresExtractionQueueRepository {
     return Boolean(result.rowCount);
   }
 
-  async complete(job: ClaimedJob, result: ExtractionResult): Promise<boolean> {
+  async complete(
+    job: ClaimedJob,
+    result: ExtractionResult,
+    proposal: Proposal,
+  ): Promise<boolean> {
     return this.transaction(async (client) => {
       const current = await client.query(
         "SELECT 1 FROM extraction_jobs WHERE id = $1 AND workspace_id = $2 AND run_token = $3 AND status = 'running' FOR UPDATE",
@@ -612,12 +625,24 @@ export class PostgresExtractionQueueRepository {
         ],
       );
       await client.query(
+        `INSERT INTO receipt_proposals
+        (id, workspace_id, receipt_id, job_id, schema_version, proposal)
+        VALUES ($1,$2,$3,$4,1,$5)`,
+        [
+          randomUUID(),
+          job.workspaceId,
+          job.receiptId,
+          job.jobId,
+          JSON.stringify(proposal),
+        ],
+      );
+      await client.query(
         `UPDATE extraction_jobs SET status = 'completed', run_token = NULL,
         completed_at = now(), updated_at = now() WHERE id = $1`,
         [job.jobId],
       );
       await client.query(
-        "UPDATE receipts SET status = 'extracted' WHERE workspace_id = $1 AND id = $2",
+        "UPDATE receipts SET status = 'review' WHERE workspace_id = $1 AND id = $2",
         [job.workspaceId, job.receiptId],
       );
       await this.event(

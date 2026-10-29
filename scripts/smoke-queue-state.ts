@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { loadAppConfig } from "../src/server/config/app-config";
 import { PostgresExtractionQueueRepository } from "../src/server/adapters/postgres/extraction-queue-repository";
+import { normalizeExtraction } from "../src/server/extraction/normalization";
 
 async function run() {
   const pool = new Pool({ connectionString: loadAppConfig().databaseUrl });
@@ -178,13 +179,18 @@ async function run() {
       "stopped"
     )
       throw new Error("Pause did not stop running job.");
-    const staleComplete = await repository.complete(stoppedRun, {
-      version: 1,
-      engine: "tesseract",
-      device: "cpu",
+    const staleResult = {
+      version: 1 as const,
+      engine: "tesseract" as const,
+      device: "cpu" as const,
       pages: [],
       diagnostics: { durationMs: 0 },
-    });
+    };
+    const staleComplete = await repository.complete(
+      stoppedRun,
+      staleResult,
+      normalizeExtraction(staleResult),
+    );
     if (staleComplete) throw new Error("Stopped run stored stale evidence.");
     await repository.setPaused(workspaceId, actorUserId, false, randomUUID());
     const retried = await repository.retry(

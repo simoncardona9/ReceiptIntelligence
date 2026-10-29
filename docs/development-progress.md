@@ -1,5 +1,33 @@
 # Development Progress
 
+## Step 3 — Slice 3.4 delivered and complete Step 3 check
+
+- Added deterministic, provider-neutral proposal normalization for Spanish
+  receipt fields and line items. Exact text, confidence, source page/region,
+  normalized UYU/USD money and date, conflicts, and missing-field warnings are
+  preserved. Long card-number-like text is redacted before evidence storage.
+- Migration `0007_receipt_proposals.sql` adds immutable proposals. Successful
+  extraction now commits evidence, proposal, job completion, receipt `review`
+  status, and audit together. The scoped read API and source page show a
+  read-only proposal. Approval, correction, and export remain Step 4–6 work.
+- `pnpm check` passed with 46 TypeScript tests, 13 Python OCR tests, and the
+  production build. `docker compose config --quiet` and repeated migrations
+  passed. Final Compose web and worker images built and services became healthy.
+  Synthetic auth and intake smoke passed. Extraction smoke passed with both a
+  blank image and a rendered supermarket receipt; the latter confirmed total
+  24,300 minor units, UYU, two lines, and source provenance. The same smoke
+  confirmed a removed source fails without storing partial evidence or a
+  proposal. Queue-state smoke passed after the proposal change with the worker
+  stopped. One final production-build attempt hit the known intermittent
+  TypeScript configuration parse error; the immediate full `pnpm check` rerun
+  passed with the web service still stopped.
+- The local Tesseract CPU benchmark completed all five synthetic cases:
+  52/76 text evidence lines, 29/29 receipt-level lines, 23/47 line-item lines,
+  and 41/65 coordinate matches. Mean latency was 718.22 ms and peak sampled
+  host RSS was 21,256 KiB. PaddleOCR real-model and GPU runs were unavailable;
+  the adapter was checked with synthetic model output. These fixture figures
+  do not establish production accuracy.
+
 ## Step 3 — Slice 3.3 delivered
 
 - Added migration `0006_extraction_queue.sql`, workspace-scoped queue APIs,

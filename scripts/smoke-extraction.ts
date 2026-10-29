@@ -259,6 +259,130 @@ async function run() {
   ).jobs;
   if (viewerJobs.some((job) => job.safeErrorCode !== null))
     throw new Error("viewer saw error detail");
+  const proposalPath = `${path}/receipts/${receiptId}/proposal`;
+  const proposalResponse = await api(proposalPath, "GET", viewer);
+  expect(proposalResponse.status, 200, "viewer proposal read");
+  const proposal = (
+    proposalResponse.data.stored as {
+      proposal: {
+        version: number;
+        warnings: string[];
+        fields: {
+          totalMinor: {
+            normalized: number;
+            evidence: { sourceId: string };
+          } | null;
+          currency: { normalized: string } | null;
+        };
+        lineItems: unknown[];
+      };
+    }
+  ).proposal;
+  if (
+    proposal.version !== 1 ||
+    (!process.env.OCR_SMOKE_SOURCE &&
+      !proposal.warnings.includes("MISSING_TOTAL_MINOR"))
+  )
+    throw new Error("source did not produce a reviewable proposal");
+  if (
+    process.env.OCR_SMOKE_SOURCE &&
+    (proposal.fields.totalMinor?.normalized !== 24300 ||
+      proposal.fields.totalMinor.evidence.sourceId !== source.source.id ||
+      proposal.fields.currency?.normalized !== "UYU" ||
+      proposal.lineItems.length !== 2)
+  )
+    throw new Error(
+      "synthetic OCR proposal lost amount, currency, lines, or source provenance",
+    );
+  expect(
+    (
+      await api(
+        `/api/workspaces/${randomUUID()}/receipts/${receiptId}/proposal`,
+        "GET",
+        viewer,
+      )
+    ).status,
+    404,
+    "foreign proposal scope",
+  );
+  expect(
+    (
+      await api(
+        `${path}/extraction-queue/pause`,
+        "POST",
+        owner,
+        {},
+        randomUUID(),
+      )
+    ).status,
+    200,
+    "pause before source removal",
+  );
+  const removedBytes = Buffer.from(bytes);
+  removedBytes[removedBytes.length - 1] ^= 1;
+  const removedUpload = await fetch(new URL(`${path}/sources`, base), {
+    method: "POST",
+    headers: {
+      Origin: origin,
+      Cookie: owner,
+      "Content-Type": "image/png",
+      "X-Source-Filename": "synthetic-to-remove.png",
+      "Idempotency-Key": randomUUID(),
+    },
+    body: removedBytes,
+  });
+  expect(removedUpload.status, 201, "source for removal");
+  const removedSourceId = (
+    (await removedUpload.json()) as { source: { id: string } }
+  ).source.id;
+  const removedStage = await api(
+    `${path}/receipts`,
+    "POST",
+    owner,
+    { sourceIds: [removedSourceId] },
+    randomUUID(),
+  );
+  expect(removedStage.status, 201, "stage before removal");
+  const removedReceiptId = (removedStage.data.receipt as { id: string }).id;
+  expect(
+    (await api(`${path}/sources/${removedSourceId}`, "DELETE", owner)).status,
+    200,
+    "source removal",
+  );
+  const removedJobResponse = await api(
+    `${path}/receipts/${removedReceiptId}/extraction-jobs`,
+    "POST",
+    owner,
+    undefined,
+    randomUUID(),
+  );
+  expect(removedJobResponse.status, 201, "submit removed source");
+  const removedJobId = (removedJobResponse.data.job as { id: string }).id;
+  expect(
+    (
+      await api(
+        `${path}/extraction-queue/resume`,
+        "POST",
+        owner,
+        {},
+        randomUUID(),
+      )
+    ).status,
+    200,
+    "resume after source removal",
+  );
+  let removedStatus = "";
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const snapshot = await api(`${path}/extraction-jobs`, "GET", owner);
+    removedStatus =
+      (
+        snapshot.data.queue as { jobs: { id: string; status: string }[] }
+      ).jobs.find((job) => job.id === removedJobId)?.status ?? "";
+    if (removedStatus === "failed") break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  if (removedStatus !== "failed")
+    throw new Error("removed source did not fail safely");
   const pool = new Pool({ connectionString: loadAppConfig().databaseUrl });
   try {
     const evidence = await pool.query(
@@ -267,11 +391,38 @@ async function run() {
     );
     if (evidence.rowCount !== 1)
       throw new Error("completed job lacks evidence");
+    const stored = await pool.query<{ id: string }>(
+      "SELECT id FROM receipt_proposals WHERE job_id = $1 AND workspace_id = $2",
+      [secondId, workspaceId],
+    );
+    if (stored.rowCount !== 1) throw new Error("completed job lacks proposal");
+    const receipt = await pool.query<{ status: string }>(
+      "SELECT status FROM receipts WHERE id = $1 AND workspace_id = $2",
+      [receiptId, workspaceId],
+    );
+    if (receipt.rows[0]?.status !== "review")
+      throw new Error("receipt is not in review state");
     const cancelled = await pool.query(
       "SELECT 1 FROM extraction_evidence WHERE job_id = $1",
       [jobId],
     );
     if (cancelled.rowCount) throw new Error("cancelled job retained evidence");
+    const cancelledProposal = await pool.query(
+      "SELECT 1 FROM receipt_proposals WHERE job_id = $1",
+      [jobId],
+    );
+    if (cancelledProposal.rowCount)
+      throw new Error("cancelled job retained proposal");
+    const removedEvidence = await pool.query(
+      "SELECT 1 FROM extraction_evidence WHERE job_id = $1",
+      [removedJobId],
+    );
+    const removedProposal = await pool.query(
+      "SELECT 1 FROM receipt_proposals WHERE job_id = $1",
+      [removedJobId],
+    );
+    if (removedEvidence.rowCount || removedProposal.rowCount)
+      throw new Error("removed source left partial extraction data");
     const event = await pool.query<{ id: string }>(
       "SELECT id FROM extraction_job_events WHERE job_id = $1 AND action = 'completed'",
       [secondId],
@@ -285,6 +436,15 @@ async function run() {
       throw new Error("audit event was mutable");
     } catch (error) {
       if (error instanceof Error && error.message === "audit event was mutable")
+        throw error;
+    }
+    try {
+      await pool.query("DELETE FROM receipt_proposals WHERE id = $1", [
+        stored.rows[0].id,
+      ]);
+      throw new Error("proposal was mutable");
+    } catch (error) {
+      if (error instanceof Error && error.message === "proposal was mutable")
         throw error;
     }
   } finally {

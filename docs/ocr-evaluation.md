@@ -129,3 +129,14 @@ approved private benchmark corpus outside version control, assess the same
 metrics across CPU and available GPU runs, and inspect difficult failures
 without recording receipt content in reports or logs. Canonical monetary/date
 parsing and proposal quality belong to Slice 3.4.
+
+## Recorded local baseline (2026-10-29)
+
+The Compose worker's Tesseract Spanish CPU path ran all five synthetic cases
+without command failures. It matched **52/76** expected evidence lines,
+including **29/29** receipt-level lines and **23/47** line-item lines.
+Coordinate overlap passed for **41/65** expected boxes. Mean per-case latency
+was **718.22 ms** and sampled peak host RSS was **21,256 KiB**. The long glare
+case matched **8/32** lines and accounts for all line-item misses. These
+figures describe only the invented fixture corpus, on this local Compose
+setup; they are not a production accuracy claim or a Paddle comparison.

@@ -1,5 +1,9 @@
 node_modules
+.pnpm-store
 .next
+__pycache__
+*.pyc
+*.tsbuildinfo
 coverage
 dist
 .git
