@@ -281,6 +281,18 @@ field correction or approval logic beyond navigation.
 
 **Dependencies/risk:** 2.1–2.3; lifecycle clarity.
 
+**Step 2 acceptance boundary approved on 2026-10-29:** List the currently
+reachable staged receipt and manual-expense records with truthful origin and
+status, workspace scope, and role-aware navigation. Preview private image/PDF
+sources through the authorized download endpoint with read-only controls.
+Later processing, blocked, failed, rejected, approved, and archived states are
+introduced by their owning lifecycle slices. Invalid cases include missing or
+foreign workspace IDs, removed sources, absent sessions, and viewer mutation
+attempts. Verify with `pnpm check`, synthetic inbox/source smoke checks, and
+the complete Step 2 regression suite.
+
+**Status:** Implemented on the Step 2 branch on 2026-10-29.
+
 ## Step 3 — Local extraction and canonical proposal
 
 ### Slice 3.1 — OCR evaluation fixture

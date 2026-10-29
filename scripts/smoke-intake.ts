@@ -308,6 +308,48 @@ async function run() {
     404,
     "foreign manual expense",
   );
+  const inbox = await json(`${path}/inbox`, "GET", cookie);
+  expect(inbox.status, 200, "workspace inbox");
+  const entries = inbox.data.entries as {
+    id: string;
+    origin: string;
+    status: string;
+  }[];
+  if (
+    !entries.some(
+      (entry) =>
+        entry.id === receiptId &&
+        entry.origin === "receipt" &&
+        entry.status === "staged",
+    ) ||
+    !entries.some(
+      (entry) =>
+        entry.id === manualId &&
+        entry.origin === "manual" &&
+        entry.status === "staged",
+    )
+  )
+    throw new Error("Inbox omitted staged receipt or manual expense");
+  expect(
+    (await json(`${path}/inbox`, "GET")).status,
+    401,
+    "unauthenticated inbox",
+  );
+  expect(
+    (await json(`/api/workspaces/${randomUUID()}/inbox`, "GET", cookie)).status,
+    404,
+    "foreign inbox",
+  );
+  for (const route of [
+    `/workspaces/${workspaceId}/inbox`,
+    `/workspaces/${workspaceId}/receipts/${receiptId}/review`,
+    `/workspaces/${workspaceId}/manual-expenses/${manualId}`,
+  ]) {
+    const page = await fetch(new URL(route, base), {
+      headers: { Cookie: cookie },
+    });
+    expect(page.status, 200, `page ${route}`);
+  }
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   try {
     const manualAudit = await pool.query<{ count: string }>(

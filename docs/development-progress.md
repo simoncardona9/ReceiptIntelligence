@@ -1,5 +1,33 @@
 # Development Progress
 
+## Step 2 — Slice 2.4 delivered
+
+- Added a workspace-scoped inbox combining staged receipts and manual expenses.
+  The Spanish list and detail pages navigate to source or manual review. Source
+  preview uses the private authorized download API and includes image zoom,
+  rotation, visual crop, and PDF page controls.
+- `pnpm check` passed with 37 unit tests and a production build. The synthetic
+  intake smoke suite passed with inbox membership, status, scope, and page
+  availability assertions. The full Step 2 check is recorded below.
+
+## Step 2 — Complete development check
+
+- `pnpm check` passed: formatting, lint, TypeScript, 37 unit tests, and the
+  production build. The Compose web service was stopped during the production
+  build because a concurrent Next.js dev process intermittently writes `.next`
+  and causes a TypeScript configuration parse error; it was restarted after
+  the build and returned to healthy state.
+- `docker compose config --quiet` passed. The database and web service reached
+  healthy state. A repeat `pnpm db:migrate` completed without reapplying
+  migrations `0003`–`0005`.
+- `pnpm smoke:auth` and `pnpm smoke:intake` passed in Compose with synthetic
+  data. Together they cover authentication, workspace roles, source storage,
+  exact and likely duplicates, retry conflicts, manual origin, inbox scope,
+  append-only audits, and the Step 2 page routes.
+- Step 2 supports staged records. Extraction, correction, approval, export,
+  and their later lifecycle statuses remain assigned to Steps 3–6. Browser PDF
+  preview depends on the browser's PDF viewer; download remains available.
+
 ## Step 2 — Slice 2.3 delivered
 
 - Added source-free manual expense and line-item tables, an explicit manual
