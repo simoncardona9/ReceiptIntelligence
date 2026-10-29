@@ -5,6 +5,7 @@
 - Resolve workspace roles from persisted membership. Owners may manage access, editors may edit, and viewers may read.
 - Keep source files private and use short-lived, authorized download URLs or a server proxy.
 - Local source binaries use generated object keys, restrictive filesystem permissions, and a private directory outside the public web root; source downloads pass through an authenticated server route.
+- Environment-based bootstrap credentials are for local development only. Store passwords in a secret manager outside development; bootstrap is disabled in production and does not modify existing accounts.
 - Encrypt traffic and storage using platform controls; secrets belong in a secret manager.
 - Do not log receipt images, OCR text, full filenames when sensitive, payment details, or raw provider payloads.
 - Define retention, deletion, export, and provider-processing policies before production.

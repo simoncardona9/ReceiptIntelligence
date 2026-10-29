@@ -16,6 +16,18 @@ with this document.
   a separate source type, not a receipt format.
 - Version 1 is intended for 2–5 users and fewer than 500 receipts per month.
 
+## Local development account bootstrap
+
+- Local development may configure a bootstrap owner using paired
+  `BOOTSTRAP_OWNER_EMAIL` and `BOOTSTRAP_OWNER_PASSWORD` values in `.env`; the
+  optional workspace name defaults to `Casa`.
+- Startup creates the account, owner membership, workspace, and audit events
+  atomically only when the normalized email is new. Repeated startup does not
+  change an existing password or promote an existing account.
+- Bootstrap credentials are for local development only and are rejected in
+  production. Password values are never logged or committed outside the
+  synthetic `.env.example` values.
+
 ## Version 1 user flow
 
 ```text

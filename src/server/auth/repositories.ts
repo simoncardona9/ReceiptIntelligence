@@ -10,6 +10,11 @@ import type {
 export type WorkspaceScope = Readonly<{ workspaceId: string }>;
 
 export interface IdentityRepository {
+  bootstrapOwner(input: {
+    email: string;
+    passwordHash: string;
+    workspaceName: string;
+  }): Promise<boolean>;
   registerAccount(input: {
     email: string;
     passwordHash: string;

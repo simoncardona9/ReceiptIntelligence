@@ -22,7 +22,7 @@ services:
       [
         "sh",
         "-c",
-        "CI=true pnpm install --frozen-lockfile && pnpm db:migrate && pnpm dev --hostname 0.0.0.0",
+        "CI=true pnpm install --frozen-lockfile && pnpm db:migrate && pnpm bootstrap:owner && pnpm dev --hostname 0.0.0.0",
       ]
     environment:
       DATABASE_URL: ${DATABASE_URL:?Copy .env.example to .env and set local development values}
@@ -30,6 +30,9 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
       PORT: ${PORT:-3000}
       SOURCE_STORAGE_DIRECTORY: /var/lib/receipt-sources
+      BOOTSTRAP_OWNER_EMAIL: ${BOOTSTRAP_OWNER_EMAIL:-}
+      BOOTSTRAP_OWNER_PASSWORD: ${BOOTSTRAP_OWNER_PASSWORD:-}
+      BOOTSTRAP_WORKSPACE_NAME: ${BOOTSTRAP_WORKSPACE_NAME:-Casa}
     depends_on:
       db:
         condition: service_healthy

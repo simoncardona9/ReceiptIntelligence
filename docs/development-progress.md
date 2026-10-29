@@ -12,11 +12,14 @@
   implemented on 2026-10-28.
 - Slice 1.4 was approved by the user's explicit `go` instruction and implemented
   on 2026-10-28.
+- Added an environment-configured, one-time local owner bootstrap on 2026-10-29;
+  existing accounts are not reset or promoted.
 - The repository now has a TypeScript/Next.js shell, validated local
   configuration, PostgreSQL Compose service, dependency health endpoint,
   account authentication, workspace membership/access requests, centralized
   role permissions, typed audit events, private source storage, workspace-scoped
-  source access, quality commands, and synthetic fixtures.
+  source access, optional environment-configured local owner bootstrap, quality
+  commands, and synthetic fixtures.
 - Slice 1.2 adds the first migration for identity/workspace state. No receipt
   tables, upload, extraction, production credentials, or real receipt data have
   been created.
@@ -117,3 +120,15 @@
 - Local adapter tests confirm UUID-only object paths, `0700` directory and
   `0600` file permissions, and retry-safe physical removal. No real receipt or
   financial data is used.
+
+## Local development owner bootstrap follow-up
+
+- `.env.example` now includes synthetic owner credentials and an optional
+  workspace name. Paired email/password settings are validated without echoing
+  values; an existing account is never reset or promoted.
+- Startup creates a new user, owner workspace, membership, and both audit events
+  in one transaction. Production startup rejects configured bootstrap
+  credentials.
+- `pnpm check` passes with 37 tests. The Compose bootstrap ran successfully,
+  a repeat made no changes, and the synthetic smoke suite authenticated with the
+  configured credentials and verified the owner workspace.

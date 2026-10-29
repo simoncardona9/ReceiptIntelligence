@@ -49,6 +49,48 @@ export class PostgresAuthWorkspaceRepository
 {
   constructor(private readonly pool: Pool) {}
 
+  async bootstrapOwner(input: {
+    email: string;
+    passwordHash: string;
+    workspaceName: string;
+  }): Promise<boolean> {
+    const userId = randomUUID();
+    const workspaceId = randomUUID();
+    return inTransaction(this.pool, async (client) => {
+      const created = await client.query<{ id: string }>(
+        `INSERT INTO users (id, email, email_normalized, password_hash)
+         VALUES ($1, $2, $2, $3)
+         ON CONFLICT (email_normalized) DO NOTHING
+         RETURNING id`,
+        [userId, input.email, input.passwordHash],
+      );
+      if (!created.rowCount) return false;
+
+      await client.query(
+        "INSERT INTO workspaces (id, name, created_by) VALUES ($1, $2, $3)",
+        [workspaceId, input.workspaceName, userId],
+      );
+      await client.query(
+        `INSERT INTO memberships (workspace_id, user_id, role)
+         VALUES ($1, $2, 'owner')`,
+        [workspaceId, userId],
+      );
+      await this.appendAudit(client, {
+        actorUserId: userId,
+        workspaceId: null,
+        action: "account_registered",
+        subjectId: userId,
+      });
+      await this.appendAudit(client, {
+        actorUserId: userId,
+        workspaceId,
+        action: "workspace_created",
+        subjectId: workspaceId,
+      });
+      return true;
+    });
+  }
+
   async registerAccount(input: {
     email: string;
     passwordHash: string;

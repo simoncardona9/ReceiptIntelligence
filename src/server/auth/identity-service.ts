@@ -25,6 +25,16 @@ export class IdentityService {
     return { status: "continue_to_sign_in" as const };
   }
 
+  async bootstrapOwner(email: string, password: string, workspaceName: string) {
+    if (await this.repository.findUserByEmail(email)) return false;
+    const passwordHash = await hashPassword(password);
+    return this.repository.bootstrapOwner({
+      email,
+      passwordHash,
+      workspaceName,
+    });
+  }
+
   async login(email: string, password: string) {
     const user = await this.repository.findUserByEmail(email);
     const passwordMatches = await verifyPassword(

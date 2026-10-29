@@ -7,12 +7,13 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "predev": "pnpm check:env",
+    "predev": "pnpm check:env && pnpm bootstrap:owner",
     "dev": "next dev",
-    "prestart": "pnpm check:env",
+    "prestart": "pnpm check:env && pnpm bootstrap:owner",
     "start": "next start",
     "build": "next build",
     "check:env": "node --import=tsx scripts/check-env.ts",
+    "bootstrap:owner": "node --import=tsx scripts/bootstrap-owner.ts",
     "db:migrate": "node --import=tsx scripts/migrate.ts",
     "smoke:auth": "node --import=tsx scripts/smoke-auth.ts",
     "lint": "eslint .",

@@ -24,8 +24,12 @@ Compose network. The example credentials are local development values and must
 not be reused elsewhere.
 
 The Compose startup applies pending database migrations before starting the
-app. The initial account flow is available at `/register`, `/login`, and
-`/workspaces`.
+app and creates the optional bootstrap owner on first run. Configure
+`BOOTSTRAP_OWNER_EMAIL` and `BOOTSTRAP_OWNER_PASSWORD` in `.env` to choose the
+login; `BOOTSTRAP_WORKSPACE_NAME` defaults to `Casa`. The example values are
+synthetic local credentials only. Bootstrap is idempotent and never changes an
+existing account's password or role. The account flow is also available at
+`/register`, `/login`, and `/workspaces`.
 
 To stop the services, run `docker compose down`. To also remove the local
 database volume, run `docker compose down --volumes`.

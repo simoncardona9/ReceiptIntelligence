@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
+import { PostgresAuthWorkspaceRepository } from "../src/server/adapters/postgres/auth-workspace-repository";
+import { IdentityService } from "../src/server/auth/identity-service";
 
 const baseUrl = process.env.APP_BASE_URL ?? "http://127.0.0.1:3000";
 const origin = new URL(baseUrl).origin;
@@ -170,7 +172,91 @@ async function verifySourceAuditIsAppendOnly(sourceId: string) {
   }
 }
 
+async function verifyBootstrapIsIdempotent() {
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const repository = new PostgresAuthWorkspaceRepository(pool);
+  const identity = new IdentityService(repository);
+  const email = `synthetic-bootstrap-${randomUUID()}@example.invalid`;
+  const password = `Synthetic-${randomUUID()}-Passphrase`;
+  try {
+    const first = await identity.bootstrapOwner(
+      email,
+      password,
+      "Synthetic Bootstrap Home",
+    );
+    const original = await repository.findUserByEmail(email);
+    const retry = await identity.bootstrapOwner(
+      email,
+      `Different-${randomUUID()}-Passphrase`,
+      "Different Workspace",
+    );
+    const repeated = await repository.findUserByEmail(email);
+    if (
+      !first ||
+      retry ||
+      !original ||
+      repeated?.passwordHash !== original.passwordHash
+    ) {
+      throw new Error("Bootstrap retry changed an existing account");
+    }
+    const state = await pool.query<{
+      workspaceCount: string;
+      ownerCount: string;
+      registrationAudits: string;
+      workspaceAudits: string;
+    }>(
+      `SELECT
+         (SELECT count(*) FROM workspaces WHERE created_by = $1)::text AS "workspaceCount",
+         (SELECT count(*) FROM memberships WHERE user_id = $1 AND role = 'owner')::text AS "ownerCount",
+         (SELECT count(*) FROM auth_audit_events WHERE actor_user_id = $1 AND action = 'account_registered')::text AS "registrationAudits",
+         (SELECT count(*) FROM auth_audit_events WHERE actor_user_id = $1 AND action = 'workspace_created')::text AS "workspaceAudits"`,
+      [original.id],
+    );
+    if (
+      state.rows[0]?.workspaceCount !== "1" ||
+      state.rows[0]?.ownerCount !== "1" ||
+      state.rows[0]?.registrationAudits !== "1" ||
+      state.rows[0]?.workspaceAudits !== "1"
+    ) {
+      throw new Error("Bootstrap did not create one audited owner workspace");
+    }
+  } finally {
+    await pool.end();
+  }
+}
+
+async function verifyConfiguredBootstrapLogin() {
+  const email = process.env.BOOTSTRAP_OWNER_EMAIL;
+  const password = process.env.BOOTSTRAP_OWNER_PASSWORD;
+  if (!email || !password) return;
+
+  const login = await api("/api/auth/login", {
+    method: "POST",
+    body: { email, password },
+  });
+  expectStatus(login, 200, "configured bootstrap owner login");
+  const session = await api("/api/auth/session", {
+    cookie: sessionCookie(login),
+  });
+  expectStatus(session, 200, "configured bootstrap owner session");
+  const workspaces = session.body.workspaces;
+  if (
+    !Array.isArray(workspaces) ||
+    !workspaces.some(
+      (workspace) =>
+        typeof workspace === "object" &&
+        workspace !== null &&
+        "role" in workspace &&
+        workspace.role === "owner",
+    )
+  ) {
+    throw new Error("Configured bootstrap account has no owner workspace");
+  }
+}
+
 async function run() {
+  await verifyBootstrapIsIdempotent();
+  await verifyConfiguredBootstrapLogin();
   for (const path of ["/", "/login", "/register", "/workspaces"]) {
     const page = await fetch(new URL(path, baseUrl));
     if (page.status !== 200) {
@@ -687,7 +773,7 @@ async function run() {
   await verifyAuditIsAppendOnly();
 
   console.info(
-    "Authentication, workspace, and private source storage smoke checks passed with synthetic data.",
+    "Bootstrap, authentication, workspace, and private source storage smoke checks passed with synthetic data.",
   );
 }
 

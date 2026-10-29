@@ -5,6 +5,7 @@ import type { IdentityRepository } from "./repositories";
 
 function fakeRepository(overrides: Partial<IdentityRepository> = {}) {
   const repository: IdentityRepository = {
+    bootstrapOwner: vi.fn(async () => true),
     registerAccount: vi.fn(async () => undefined),
     findUserByEmail: vi.fn(async () => null),
     createSession: vi.fn(async () => undefined),
@@ -17,6 +18,44 @@ function fakeRepository(overrides: Partial<IdentityRepository> = {}) {
 }
 
 describe("identity service", () => {
+  it("bootstraps a workspace owner with a password hash only for a new account", async () => {
+    const repository = fakeRepository();
+    const service = new IdentityService(repository);
+
+    await expect(
+      service.bootstrapOwner(
+        "owner@example.invalid",
+        "synthetic-passphrase-42",
+        "Synthetic Home",
+      ),
+    ).resolves.toBe(true);
+    expect(repository.bootstrapOwner).toHaveBeenCalledWith({
+      email: "owner@example.invalid",
+      passwordHash: expect.stringMatching(/^scrypt\$/),
+      workspaceName: "Synthetic Home",
+    });
+  });
+
+  it("does not overwrite or promote an existing account during bootstrap", async () => {
+    const repository = fakeRepository({
+      findUserByEmail: vi.fn(async () => ({
+        id: "existing-user",
+        email: "owner@example.invalid",
+        passwordHash: "existing-hash",
+      })),
+    });
+    const service = new IdentityService(repository);
+
+    await expect(
+      service.bootstrapOwner(
+        "owner@example.invalid",
+        "synthetic-passphrase-42",
+        "Synthetic Home",
+      ),
+    ).resolves.toBe(false);
+    expect(repository.bootstrapOwner).not.toHaveBeenCalled();
+  });
+
   it("registers without creating a session or returning account details", async () => {
     const repository = fakeRepository();
     const service = new IdentityService(repository);
