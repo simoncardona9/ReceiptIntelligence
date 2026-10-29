@@ -11,6 +11,7 @@ It must be reviewed before implementation starts.
 | [architecture.md](architecture.md)                         | System shape and dependency direction                                 |
 | [technology-stack.md](technology-stack.md)                 | Technology decisions and deferred choices                             |
 | [ocr-evaluation.md](ocr-evaluation.md)                     | Local OCR candidates, boundary, and benchmark plan                    |
+| [extraction-worker.md](extraction-worker.md)               | Versioned local OCR worker protocol and adapters                       |
 | [data-model.md](data-model.md)                             | Entities, ownership, and provenance                                   |
 | [business-rules.md](business-rules.md)                     | Extraction, review, correction, and financial rules                   |
 | [security-privacy.md](security-privacy.md)                 | Access, retention, privacy, and threat controls                       |

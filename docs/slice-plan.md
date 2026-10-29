@@ -352,6 +352,25 @@ replaced behind the port; no network provider receives source content.
 
 **Dependencies/risk:** 3.1 and 1.4; process isolation and resource use.
 
+**Status:** Approved by the user's request to complete all Step 3 slices and
+implemented on `step-3-local-extraction` on 2026-10-29.
+
+**Implementation plan:** Add a version 1 JSON stdin/stdout worker contract,
+local PDF/image page rendering, PaddleOCR text-region adapter and Tesseract
+fallback adapter, CPU default and optional Paddle GPU selection. Validate
+bounded input/output, map engine exceptions to safe error codes, test source
+page order and coordinates with synthetic data, and run focused checks.
+
+**Invalid cases:** malformed contract, unsupported engine or media type,
+missing/oversize source, unreadable image/PDF, too many pages, missing engine,
+malformed OCR output, timeout/resource failure, and invalid coordinates. The
+worker must not log raw text or source paths, call a network OCR service, or
+decide persistence/approval.
+
+**Data/security risk:** source bytes remain local. The worker sees private
+source paths only after the application selects them; detailed provider errors
+must never cross its safe contract. No database migration in this slice.
+
 ### Slice 3.3 — Extraction queue
 
 **Outcome:** Users can submit and monitor extraction jobs that survive restarts.

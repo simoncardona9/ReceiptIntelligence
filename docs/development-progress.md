@@ -1,5 +1,21 @@
 # Development Progress
 
+## Step 3 — Slice 3.2 delivered
+
+- Added a versioned local OCR worker contract and replaceable TypeScript
+  `ReceiptExtractionPort`. The adapter runs an isolated Python process against
+  private temporary source files, validates output, enforces a timeout, and
+  removes the files. The worker supports local image/PDF pages, PaddleOCR with
+  explicitly installed local models, and a Tesseract Spanish TSV fallback.
+- Successful output contains provider-neutral text regions, confidence,
+  normalized boxes, page provenance, and duration. Failure codes contain no
+  OCR text or source paths. No database, API, approval, or export state changed.
+- `pnpm check` passed with 40 TypeScript tests, 11 Python OCR tests, and the
+  production build. The Compose web service was stopped during the build to
+  avoid known `.next` contention, then restarted. The local host lacks OCR
+  engine packages/models, so adapter behavior was tested with synthetic/fake
+  engine output; real OCR quality remains unmeasured.
+
 ## Step 3 — Slice 3.1 delivered
 
 - Created `step-3-local-extraction` from updated `main` on 2026-10-29.
