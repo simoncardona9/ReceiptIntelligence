@@ -7,6 +7,8 @@ import type {
   WorkspaceSummary,
 } from "./contracts";
 
+export type WorkspaceScope = Readonly<{ workspaceId: string }>;
+
 export interface IdentityRepository {
   registerAccount(input: {
     email: string;
@@ -30,24 +32,28 @@ export interface WorkspaceRepository {
     idempotencyKey: string;
     name: string;
   }): Promise<WorkspaceSummary>;
-  selectWorkspace(input: {
-    userId: string;
-    sessionId: string;
-    workspaceId: string;
-  }): Promise<WorkspaceSummary>;
-  requestAccess(input: {
-    userId: string;
-    workspaceId: string;
-  }): Promise<{ id: string; workspaceId: string; status: "pending" }>;
-  listPendingRequests(input: {
-    ownerId: string;
-    workspaceId: string;
-  }): Promise<AccessRequestSummary[]>;
-  decideAccessRequest(input: {
-    ownerId: string;
-    workspaceId: string;
-    requestId: string;
-    decision: AccessDecision;
-    role: Exclude<WorkspaceRole, "owner"> | null;
-  }): Promise<void>;
+  selectWorkspace(
+    input: WorkspaceScope & {
+      userId: string;
+      sessionId: string;
+    },
+  ): Promise<WorkspaceSummary>;
+  requestAccess(
+    input: WorkspaceScope & {
+      userId: string;
+    },
+  ): Promise<{ id: string; workspaceId: string; status: "pending" }>;
+  listPendingRequests(
+    input: WorkspaceScope & {
+      ownerId: string;
+    },
+  ): Promise<AccessRequestSummary[]>;
+  decideAccessRequest(
+    input: WorkspaceScope & {
+      ownerId: string;
+      requestId: string;
+      decision: AccessDecision;
+      role: Exclude<WorkspaceRole, "owner"> | null;
+    },
+  ): Promise<void>;
 }

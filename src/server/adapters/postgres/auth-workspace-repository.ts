@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import {
   DomainError,
+  type AuditEvent,
   type AccessDecision,
   type AccessRequestSummary,
   type SessionContext,
@@ -9,6 +10,7 @@ import {
   type WorkspaceRole,
   type WorkspaceSummary,
 } from "@/server/auth/contracts";
+import { requireWorkspacePermission } from "@/server/auth/authorization";
 import type {
   IdentityRepository,
   WorkspaceRepository,
@@ -61,13 +63,12 @@ export class PostgresAuthWorkspaceRepository
         [userId, input.email, input.passwordHash],
       );
       if (!result.rowCount) return;
-      await this.appendAudit(
-        client,
-        userId,
-        null,
-        "account_registered",
-        userId,
-      );
+      await this.appendAudit(client, {
+        actorUserId: userId,
+        workspaceId: null,
+        action: "account_registered",
+        subjectId: userId,
+      });
     });
   }
 
@@ -92,13 +93,12 @@ export class PostgresAuthWorkspaceRepository
          VALUES ($1, $2, $3, $4)`,
         [sessionId, input.userId, input.tokenHash, input.expiresAt],
       );
-      await this.appendAudit(
-        client,
-        input.userId,
-        null,
-        "session_created",
-        sessionId,
-      );
+      await this.appendAudit(client, {
+        actorUserId: input.userId,
+        workspaceId: null,
+        action: "session_created",
+        subjectId: sessionId,
+      });
     });
   }
 
@@ -143,13 +143,12 @@ export class PostgresAuthWorkspaceRepository
       );
       const session = result.rows[0];
       if (session) {
-        await this.appendAudit(
-          client,
-          session.userId,
-          session.workspaceId,
-          "session_revoked",
-          session.id,
-        );
+        await this.appendAudit(client, {
+          actorUserId: session.userId,
+          workspaceId: session.workspaceId,
+          action: "session_revoked",
+          subjectId: session.id,
+        });
       }
     });
   }
@@ -242,13 +241,12 @@ export class PostgresAuthWorkspaceRepository
             JSON.stringify(workspace),
           ],
         );
-        await this.appendAudit(
-          client,
-          input.userId,
+        await this.appendAudit(client, {
+          actorUserId: input.userId,
           workspaceId,
-          "workspace_created",
-          workspaceId,
-        );
+          action: "workspace_created",
+          subjectId: workspaceId,
+        });
       }
 
       const session = await client.query(
@@ -304,13 +302,12 @@ export class PostgresAuthWorkspaceRepository
           "Sign in to continue.",
         );
       }
-      await this.appendAudit(
-        client,
-        input.userId,
-        input.workspaceId,
-        "workspace_selected",
-        input.workspaceId,
-      );
+      await this.appendAudit(client, {
+        actorUserId: input.userId,
+        workspaceId: input.workspaceId,
+        action: "workspace_selected",
+        subjectId: input.workspaceId,
+      });
       return mapWorkspace(workspace);
     });
   }
@@ -352,13 +349,12 @@ export class PostgresAuthWorkspaceRepository
       );
       const request = inserted.rows[0];
       if (request) {
-        await this.appendAudit(
-          client,
-          input.userId,
-          input.workspaceId,
-          "access_requested",
-          request.id,
-        );
+        await this.appendAudit(client, {
+          actorUserId: input.userId,
+          workspaceId: input.workspaceId,
+          action: "access_requested",
+          subjectId: request.id,
+        });
         return {
           id: request.id,
           workspaceId: input.workspaceId,
@@ -394,16 +390,10 @@ export class PostgresAuthWorkspaceRepository
       `SELECT role FROM memberships WHERE workspace_id = $1 AND user_id = $2`,
       [input.workspaceId, input.ownerId],
     );
-    if (!membership.rows[0]) {
-      throw new DomainError("WORKSPACE_NOT_FOUND", 404, "Workspace not found.");
-    }
-    if (membership.rows[0].role !== "owner") {
-      throw new DomainError(
-        "OWNER_REQUIRED",
-        403,
-        "Only the workspace owner can review requests.",
-      );
-    }
+    requireWorkspacePermission(
+      membership.rows[0]?.role ?? null,
+      "manage_access",
+    );
 
     const result = await this.pool.query<AccessRequestSummary>(
       `SELECT r.id, r.workspace_id AS "workspaceId", r.user_id AS "userId",
@@ -428,20 +418,10 @@ export class PostgresAuthWorkspaceRepository
         `SELECT role FROM memberships WHERE workspace_id = $1 AND user_id = $2`,
         [input.workspaceId, input.ownerId],
       );
-      if (!membership.rows[0]) {
-        throw new DomainError(
-          "WORKSPACE_NOT_FOUND",
-          404,
-          "Workspace not found.",
-        );
-      }
-      if (membership.rows[0].role !== "owner") {
-        throw new DomainError(
-          "OWNER_REQUIRED",
-          403,
-          "Only the workspace owner can review requests.",
-        );
-      }
+      requireWorkspacePermission(
+        membership.rows[0]?.role ?? null,
+        "manage_access",
+      );
 
       const found = await client.query<{
         id: string;
@@ -497,24 +477,22 @@ export class PostgresAuthWorkspaceRepository
           input.decision === "approve" ? input.role : null,
         ],
       );
-      await this.appendAudit(
-        client,
-        input.ownerId,
-        input.workspaceId,
-        input.decision === "approve" ? "access_approved" : "access_declined",
-        input.requestId,
-        input.decision === "approve" && input.role ? { role: input.role } : {},
-      );
+      await this.appendAudit(client, {
+        actorUserId: input.ownerId,
+        workspaceId: input.workspaceId,
+        action:
+          input.decision === "approve" ? "access_approved" : "access_declined",
+        subjectId: input.requestId,
+        ...(input.decision === "approve" && input.role
+          ? { metadata: { role: input.role } }
+          : {}),
+      });
     });
   }
 
   private async appendAudit(
     client: PoolClient,
-    actorId: string,
-    workspaceId: string | null,
-    action: string,
-    subjectId: string,
-    metadata: Record<string, string> = {},
+    event: AuditEvent,
   ): Promise<void> {
     await client.query(
       `INSERT INTO auth_audit_events
@@ -522,11 +500,11 @@ export class PostgresAuthWorkspaceRepository
        VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
       [
         randomUUID(),
-        actorId,
-        workspaceId,
-        action,
-        subjectId,
-        JSON.stringify(metadata),
+        event.actorUserId,
+        event.workspaceId,
+        event.action,
+        event.subjectId,
+        JSON.stringify(event.metadata ?? {}),
       ],
     );
   }

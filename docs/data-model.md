@@ -20,7 +20,9 @@ the same user and workspace.
 
 Stores immutable source metadata: workspace, object key, content hash, media
 type, original filename, byte size, upload actor, timestamps, and retention
-state. Binary content is not stored in application logs.
+state. Binary content is stored through the private object-storage adapter and
+is not stored in PostgreSQL or application logs. Removal keeps this metadata
+and records the actor and time.
 
 ### ExtractionRun
 

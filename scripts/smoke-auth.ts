@@ -110,26 +110,62 @@ async function verifyAuditIsAppendOnly() {
     );
     if (!event.rows[0]) throw new Error("Expected a synthetic audit event");
 
-    await client.query("BEGIN");
-    try {
-      await client.query(
-        "UPDATE auth_audit_events SET metadata = '{}'::jsonb WHERE id = $1",
-        [event.rows[0].id],
-      );
-    } catch (error) {
-      await client.query("ROLLBACK");
-      const code =
-        typeof error === "object" && error !== null && "code" in error
-          ? error.code
-          : undefined;
-      if (code !== "P0001") throw error;
-      return;
-    }
+    const mutationAttempts = [
+      {
+        query:
+          "UPDATE auth_audit_events SET metadata = '{}'::jsonb WHERE id = $1",
+        label: "update",
+      },
+      { query: "DELETE FROM auth_audit_events WHERE id = $1", label: "delete" },
+    ];
+    for (const attempt of mutationAttempts) {
+      await client.query("BEGIN");
+      try {
+        await client.query(attempt.query, [event.rows[0].id]);
+      } catch (error) {
+        await client.query("ROLLBACK");
+        const code =
+          typeof error === "object" && error !== null && "code" in error
+            ? error.code
+            : undefined;
+        if (code !== "P0001") throw error;
+        continue;
+      }
 
-    await client.query("ROLLBACK");
-    throw new Error("Audit event update was not rejected");
+      await client.query("ROLLBACK");
+      throw new Error(`Audit event ${attempt.label} was not rejected`);
+    }
   } finally {
     client.release();
+    await pool.end();
+  }
+}
+
+async function verifySourceAuditIsAppendOnly(sourceId: string) {
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    const event = await pool.query<{ id: string }>(
+      "SELECT id FROM source_audit_events WHERE source_file_id = $1 LIMIT 1",
+      [sourceId],
+    );
+    if (!event.rows[0]) throw new Error("Expected a source audit event");
+    for (const query of [
+      "UPDATE source_audit_events SET action = 'source_uploaded' WHERE id = $1",
+      "DELETE FROM source_audit_events WHERE id = $1",
+    ]) {
+      try {
+        await pool.query(query, [event.rows[0].id]);
+      } catch (error) {
+        const code =
+          typeof error === "object" && error !== null && "code" in error
+            ? error.code
+            : undefined;
+        if (code === "P0001") continue;
+        throw error;
+      }
+      throw new Error("Source audit event mutation was not rejected");
+    }
+  } finally {
     await pool.end();
   }
 }
@@ -353,6 +389,168 @@ async function run() {
     throw new Error("Owner approval did not create the editor membership");
   }
 
+  const syntheticPng = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1]);
+  const sourceUploadKey = randomUUID();
+  const upload = async (
+    cookie: string,
+    bytes = syntheticPng,
+    type = "image/png",
+    key = randomUUID(),
+  ) =>
+    fetch(new URL(`/api/workspaces/${workspaceId}/sources`, baseUrl), {
+      method: "POST",
+      headers: {
+        Origin: origin,
+        Cookie: cookie,
+        "Content-Type": type,
+        "X-Source-Filename": "synthetic.png",
+        "Idempotency-Key": key,
+      },
+      body: bytes,
+    });
+  const viewerUpload = await upload(viewer.cookie);
+  expectStatus(
+    { response: viewerUpload, body: {} },
+    403,
+    "viewer source upload",
+  );
+  const invalidSource = await upload(
+    owner.cookie,
+    new Uint8Array([1, 2, 3]),
+    "image/png",
+  );
+  expectStatus(
+    { response: invalidSource, body: {} },
+    400,
+    "invalid source signature",
+  );
+  const uploaded = await upload(
+    owner.cookie,
+    syntheticPng,
+    "image/png",
+    sourceUploadKey,
+  );
+  if (uploaded.status !== 201)
+    throw new Error(
+      `source upload expected HTTP 201, received ${uploaded.status}`,
+    );
+  const uploadedBody = (await uploaded.json()) as {
+    source?: Record<string, unknown>;
+  };
+  const source = uploadedBody.source;
+  if (
+    typeof source?.id !== "string" ||
+    typeof source.contentHash !== "string" ||
+    "storageKey" in source
+  ) {
+    throw new Error(
+      "Source upload returned invalid or private storage metadata",
+    );
+  }
+  const sourceId = source.id;
+  const uploadRetry = await upload(
+    owner.cookie,
+    syntheticPng,
+    "image/png",
+    sourceUploadKey,
+  );
+  if (uploadRetry.status !== 201)
+    throw new Error("Source upload retry did not succeed");
+  const retriedSource = (await uploadRetry.json()) as {
+    source?: Record<string, unknown>;
+  };
+  if (retriedSource.source?.id !== sourceId)
+    throw new Error("Source upload retry created a duplicate source");
+  const conflictingUploadRetry = await upload(
+    owner.cookie,
+    new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 2]),
+    "image/png",
+    sourceUploadKey,
+  );
+  if (conflictingUploadRetry.status !== 409)
+    throw new Error(
+      "Reused source idempotency key with different content was accepted",
+    );
+  const viewerDownload = await fetch(
+    new URL(`/api/workspaces/${workspaceId}/sources/${sourceId}`, baseUrl),
+    {
+      headers: { Cookie: viewer.cookie },
+    },
+  );
+  if (
+    viewerDownload.status !== 200 ||
+    new Uint8Array(await viewerDownload.arrayBuffer()).toString() !==
+      syntheticPng.toString()
+  ) {
+    throw new Error(
+      "Authorized viewer could not download the original source bytes",
+    );
+  }
+  const outsider = await register();
+  const deniedDownload = await fetch(
+    new URL(`/api/workspaces/${workspaceId}/sources/${sourceId}`, baseUrl),
+    { headers: { Cookie: outsider.cookie } },
+  );
+  if (deniedDownload.status !== 404)
+    throw new Error("Non-member source download was not hidden");
+  const deniedRemoval = await fetch(
+    new URL(`/api/workspaces/${workspaceId}/sources/${sourceId}`, baseUrl),
+    {
+      method: "DELETE",
+      headers: { Origin: origin, Cookie: viewer.cookie },
+    },
+  );
+  if (deniedRemoval.status !== 403)
+    throw new Error("Viewer source removal was not rejected");
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const removed = await fetch(
+      new URL(`/api/workspaces/${workspaceId}/sources/${sourceId}`, baseUrl),
+      {
+        method: "DELETE",
+        headers: { Origin: origin, Cookie: editorCandidate.cookie },
+      },
+    );
+    if (removed.status !== 200)
+      throw new Error(
+        `Editor source removal expected HTTP 200, received ${removed.status}`,
+      );
+  }
+  const removedDownload = await fetch(
+    new URL(`/api/workspaces/${workspaceId}/sources/${sourceId}`, baseUrl),
+    { headers: { Cookie: owner.cookie } },
+  );
+  if (removedDownload.status !== 404)
+    throw new Error("Removed source remained downloadable");
+  const sourceAuditPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+  });
+  const sourceAudit = await sourceAuditPool.query<{
+    action: string;
+    count: string;
+  }>(
+    "SELECT action, count(*)::text AS count FROM source_audit_events WHERE source_file_id = $1 GROUP BY action",
+    [sourceId],
+  );
+  await sourceAuditPool.end();
+  const actionCounts = new Map(
+    sourceAudit.rows.map((row) => [row.action, Number(row.count)]),
+  );
+  if (
+    actionCounts.get("source_uploaded") !== 1 ||
+    actionCounts.get("source_downloaded") !== 1 ||
+    actionCounts.get("source_removed") !== 1
+  ) {
+    throw new Error(
+      "Source operations did not produce exactly one upload, download, and removal audit event",
+    );
+  }
+  await verifySourceAuditIsAppendOnly(sourceId);
+  const editorRequestList = await api(
+    `/api/workspaces/${workspaceId}/access-requests`,
+    { cookie: editorCandidate.cookie },
+  );
+  expectStatus(editorRequestList, 403, "editor request list");
+
   const secondWorkspace = await api("/api/workspaces", {
     method: "POST",
     cookie: viewer.cookie,
@@ -360,6 +558,56 @@ async function run() {
     body: { name: "Synthetic Personal Workspace" },
   });
   expectStatus(secondWorkspace, 201, "second workspace creation");
+  const secondWorkspaceId = nestedString(
+    secondWorkspace.body,
+    "workspace",
+    "id",
+  );
+  const secondWorkspaceSourceUpload = await fetch(
+    new URL(`/api/workspaces/${secondWorkspaceId}/sources`, baseUrl),
+    {
+      method: "POST",
+      headers: {
+        Origin: origin,
+        Cookie: viewer.cookie,
+        "Content-Type": "image/png",
+        "X-Source-Filename": "other-workspace.png",
+        "Idempotency-Key": randomUUID(),
+      },
+      body: syntheticPng,
+    },
+  );
+  if (secondWorkspaceSourceUpload.status !== 201) {
+    throw new Error("Owner could not upload a source to the second workspace");
+  }
+  const otherWorkspaceSourceBody =
+    (await secondWorkspaceSourceUpload.json()) as {
+      source?: Record<string, unknown>;
+    };
+  const otherWorkspaceSourceId = otherWorkspaceSourceBody.source?.id;
+  if (typeof otherWorkspaceSourceId !== "string") {
+    throw new Error("Second workspace source upload omitted its source ID");
+  }
+  const crossWorkspaceSource = await fetch(
+    new URL(
+      `/api/workspaces/${workspaceId}/sources/${otherWorkspaceSourceId}`,
+      baseUrl,
+    ),
+    { headers: { Cookie: owner.cookie } },
+  );
+  if (crossWorkspaceSource.status !== 404) {
+    throw new Error("Cross-workspace source identifier was not hidden");
+  }
+  const cleanedSecondWorkspaceSource = await fetch(
+    new URL(
+      `/api/workspaces/${secondWorkspaceId}/sources/${otherWorkspaceSourceId}`,
+      baseUrl,
+    ),
+    { method: "DELETE", headers: { Origin: origin, Cookie: viewer.cookie } },
+  );
+  if (cleanedSecondWorkspaceSource.status !== 200) {
+    throw new Error("Synthetic second-workspace source cleanup failed");
+  }
   const multiWorkspaceSession = await api("/api/auth/session", {
     cookie: viewer.cookie,
   });
@@ -439,7 +687,7 @@ async function run() {
   await verifyAuditIsAppendOnly();
 
   console.info(
-    "Authentication and workspace smoke checks passed with synthetic accounts.",
+    "Authentication, workspace, and private source storage smoke checks passed with synthetic data.",
   );
 }
 

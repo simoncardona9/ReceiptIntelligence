@@ -38,6 +38,19 @@ describe("application configuration", () => {
     ).toEqual({
       databaseUrl: "postgresql://receipt:synthetic@localhost:5432/receipts",
       port: 4321,
+      sourceStorageDirectory: "./.receipt-storage/private",
+    });
+  });
+
+  it("accepts a configured private source directory", () => {
+    expect(
+      validateAppConfig({
+        DATABASE_URL: "postgresql://receipt:synthetic@localhost/db",
+        SOURCE_STORAGE_DIRECTORY: "/var/lib/receipt-intelligence/sources",
+      }),
+    ).toMatchObject({
+      success: true,
+      data: { sourceStorageDirectory: "/var/lib/receipt-intelligence/sources" },
     });
   });
 });

@@ -30,13 +30,20 @@ All workspace IDs and request IDs are UUIDs. A workspace or request belonging
 to another workspace is returned as `404`. Internal database errors are mapped
 to a generic `500` and are never returned to the client.
 
+Workspace permissions follow a fixed role matrix: all members may read
+workspace data, owners and editors may edit it, and only owners may manage
+membership or access requests. Missing membership returns `404`; a member
+without the required permission receives `403 OWNER_REQUIRED` for access
+management or `403 WORKSPACE_PERMISSION_REQUIRED` for other protected actions.
+The server loads role from persisted membership; clients cannot assert a role.
+
 ## Stable errors
 
 | Status | Error codes                                                                                           | Meaning                                                                                                                    |
 | ------ | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `400`  | `INVALID_JSON`, `VALIDATION_FAILED`, `INVALID_IDENTIFIER`, `IDEMPOTENCY_KEY_REQUIRED`, `INVALID_ROLE` | Input is malformed or invalid.                                                                                             |
 | `401`  | `AUTHENTICATION_REQUIRED`, `INVALID_CREDENTIALS`                                                      | A valid session is required or credentials are invalid. Login text is identical for an unknown email and a wrong password. |
-| `403`  | `ORIGIN_REQUIRED`, `ORIGIN_NOT_ALLOWED`, `OWNER_REQUIRED`                                             | The mutation origin is untrusted or an owner-only operation was attempted by a member without the owner role.              |
+| `403`  | `ORIGIN_REQUIRED`, `ORIGIN_NOT_ALLOWED`, `OWNER_REQUIRED`, `WORKSPACE_PERMISSION_REQUIRED`            | The mutation origin is untrusted or the persisted membership role lacks permission.                                        |
 | `404`  | `WORKSPACE_NOT_FOUND`, `ACCESS_REQUEST_NOT_FOUND`                                                     | The workspace/request is absent or outside the caller's membership scope.                                                  |
 | `409`  | `ALREADY_A_MEMBER`, `ACCESS_REQUEST_DECIDED`, `REQUEST_CONFLICT`, `IDEMPOTENCY_KEY_REUSED`            | The operation conflicts with existing membership, request, or idempotency state.                                           |
 | `500`  | `INTERNAL_ERROR`                                                                                      | An unexpected failure occurred; database details are withheld.                                                             |

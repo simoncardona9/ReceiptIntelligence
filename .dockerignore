@@ -5,6 +5,7 @@ dist
 .git
 .env*
 uploads
+.receipt-storage
 tmp
 docs
 reusable-skills

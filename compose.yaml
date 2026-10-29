@@ -29,6 +29,7 @@ services:
       NODE_ENV: development
       NEXT_TELEMETRY_DISABLED: "1"
       PORT: ${PORT:-3000}
+      SOURCE_STORAGE_DIRECTORY: /var/lib/receipt-sources
     depends_on:
       db:
         condition: service_healthy
@@ -36,6 +37,7 @@ services:
       - "127.0.0.1:${PORT:-3000}:3000"
     volumes:
       - .:/app
+      - source-data:/var/lib/receipt-sources
       - node-modules:/app/node_modules
       - next-cache:/app/.next
     healthcheck:
@@ -53,5 +55,6 @@ services:
 
 volumes:
   postgres-data:
+  source-data:
   node-modules:
   next-cache:

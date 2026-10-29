@@ -2,7 +2,8 @@
 
 This is the planning breakdown for Steps 1–6. These slices are ordered and
 reviewable; approve each one individually and give it a focused implementation
-plan before work starts. Slices 1.1 and 1.2 are approved and implemented.
+plan before work starts. Slices 1.1–1.4 are implemented; no later slice is
+approved.
 
 ## Step 1 — Secure foundation
 
@@ -112,6 +113,37 @@ do not contain raw receipt content. **Boundary:** no receipt workflow.
 
 **Dependencies/risk:** 1.2; foundational security risk.
 
+**Status:** Approved by the user's request to start the next slice on
+2026-10-28 and implemented on the Step 1 branch.
+
+**Implementation plan:**
+
+1. Define a shared role-to-permission policy for workspace reads, edits, and
+   access management. Keep missing membership indistinguishable from a missing
+   workspace and return a stable forbidden error for insufficient roles.
+2. Apply the policy at the authoritative repository boundary for owner-only
+   pending-request reads and access decisions. Keep workspace IDs explicit in
+   scoped repository contracts and SQL predicates.
+3. Define typed, immutable auth/workspace audit event actions and safe metadata;
+   continue writing each event in the same transaction as its state mutation.
+   Preserve the database trigger that rejects event updates and deletes.
+4. Add unit tests for every role/permission combination and runtime checks for
+   owner, editor, viewer, outsider, cross-workspace IDs, and audit immutability.
+5. Document the permission matrix and error semantics, then run `pnpm check`,
+   Compose configuration/migration checks, and the synthetic auth smoke suite.
+
+**Invalid cases:** missing workspace membership; viewer/editor attempting
+owner-only access management; an identifier from another workspace; invalid
+role grants; audit metadata containing data outside the allowlisted safe
+fields; failed state or audit writes; attempted audit update/delete. Rejected
+mutations must leave no partial state or audit entry.
+
+**Data/security boundary:** no receipt workflow, schema, or source data. Role
+checks are based on persisted membership inside the authoritative adapter; a
+request-provided role is never trusted. Audit metadata is limited to the
+approved editor/viewer role value and contains no email, credentials, or
+free-form content.
+
 ### Slice 1.4 — Source storage boundary
 
 **Outcome:** The system can store and retrieve private source-file metadata and
@@ -125,6 +157,43 @@ removing a source preserves structured metadata and records who/when; business
 code uses the port, not filesystem/SDK calls. **Boundary:** no extraction.
 
 **Dependencies/risk:** 1.3; sensitive-file retention risk.
+
+**Status:** Approved and implemented following the user's explicit `go`
+instruction on 2026-10-28.
+
+**Implementation plan (Slice 1.4 only):**
+
+1. Add a provider-neutral `ObjectStoragePort` and private local adapter with
+   opaque object keys, restrictive directory/file permissions, and no public
+   filesystem paths.
+2. Add source metadata persistence with workspace scope, SHA-256 content hash,
+   validated media type, sanitized original filename, size, upload actor/time,
+   and removal actor/time. Keep binary content out of PostgreSQL.
+3. Add authenticated workspace-scoped upload, download, and removal APIs.
+   Owners/editors may upload/remove; all members may download; other workspaces
+   and non-members receive safe 404 responses. Require a UUID idempotency key
+   for uploads and return the original source on a same-content retry.
+4. Record upload, successful download, and removal audit events atomically with
+   metadata changes where applicable. Keep audit records append-only and free
+   of filenames, file bytes, and content text.
+5. Validate file signatures and size before storage; make removal retries safe
+   and preserve source metadata after binary removal.
+6. Add service tests, synthetic database-backed smoke coverage, API and storage
+   documentation, then run `pnpm check`, Compose/migration checks, and the auth
+   plus source-storage smoke suite.
+
+**Invalid cases:** unauthenticated or cross-origin mutations; missing workspace
+membership; viewer upload/removal; cross-workspace source ID; invalid UUID;
+unsupported or MIME/signature-mismatched files; empty or oversized content;
+unsafe filename; removed or missing source download; failed metadata/audit
+transaction; storage write/read/delete failure; repeated removal. Rejected
+uploads leave no metadata or durable object, and retries do not duplicate
+removal audit events.
+
+**Data/security boundary:** no receipt entity, extraction, OCR, preview, or
+approval state is introduced. Local binaries are private, keyed by generated
+UUIDs, stored outside the public web root, and omitted from logs and responses.
+The source API is an infrastructure boundary for later intake work.
 
 ## Step 2 — Receipt and manual-expense intake
 
@@ -442,6 +511,6 @@ remaining limitations are documented. **Boundary:** no new product features.
 ## Planning status
 
 - Total planned slices: **25**.
-- Approved slices: **2** (1.1 and 1.2).
-- Implemented slices: **2** (1.1 and 1.2).
+- Approved slices: **4** (1.1–1.4).
+- Implemented slices: **4** (1.1–1.4).
 - Later slices remain drafts and are not authorized for implementation.

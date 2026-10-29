@@ -9,11 +9,16 @@ const appConfigSchema = z.object({
       { error: "must use the postgres:// or postgresql:// scheme" },
     ),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+  SOURCE_STORAGE_DIRECTORY: z
+    .string()
+    .min(1)
+    .default("./.receipt-storage/private"),
 });
 
 export type AppConfig = {
   databaseUrl: string;
   port: number;
+  sourceStorageDirectory: string;
 };
 
 export type Environment = Readonly<Record<string, string | undefined>>;
@@ -39,6 +44,7 @@ export function validateAppConfig(environment: Environment): ConfigValidation {
     data: {
       databaseUrl: parsed.data.DATABASE_URL,
       port: parsed.data.PORT,
+      sourceStorageDirectory: parsed.data.SOURCE_STORAGE_DIRECTORY,
     },
   };
 }

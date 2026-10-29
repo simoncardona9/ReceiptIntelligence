@@ -1,6 +1,23 @@
 export type WorkspaceRole = "owner" | "editor" | "viewer";
 export type AccessDecision = "approve" | "decline";
 export type AccessRequestStatus = "pending" | "approved" | "declined";
+export type AuditAction =
+  | "account_registered"
+  | "session_created"
+  | "session_revoked"
+  | "workspace_created"
+  | "workspace_selected"
+  | "access_requested"
+  | "access_approved"
+  | "access_declined";
+
+export type AuditEvent = Readonly<{
+  actorUserId: string;
+  workspaceId: string | null;
+  action: AuditAction;
+  subjectId: string;
+  metadata?: Readonly<{ role?: "editor" | "viewer" }>;
+}>;
 
 export type UserSummary = {
   id: string;

@@ -34,8 +34,8 @@ The roadmap contains 25 vertical slices across Steps 1–6. Their outcomes,
 boundaries, dependencies, risks, and acceptance conditions are defined in
 [slice-plan.md](slice-plan.md). Promote only one slice at a time, add its exact
 implementation plan and invalid cases, and identify its migration, security,
-extraction, export, and integration risks before it starts. Slices 1.1 and 1.2
-are approved and implemented. No later slice is approved.
+extraction, export, and integration risks before it starts. Slices 1.1–1.4 are
+implemented; no later slice is approved.
 
 ## Definition of done
 
