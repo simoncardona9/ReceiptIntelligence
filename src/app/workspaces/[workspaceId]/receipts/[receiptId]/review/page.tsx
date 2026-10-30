@@ -170,9 +170,7 @@ export default function SourceReviewPage() {
     <main className="review-main">
       <Link href={`/workspaces/${workspaceId}/inbox`}>← Bandeja</Link>
       <h1>Revisar fuente</h1>
-      <p>
-        Recibo {receiptId} · {receipt?.status ?? "Cargando…"}
-      </p>
+      <p>Recibo {receiptId}</p>
       {error && (
         <p role="alert" className="error">
           {error}

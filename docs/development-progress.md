@@ -1,5 +1,10 @@
 # Development Progress
 
+## Step 4 — Slice 4.4 verification
+
+- Added owner/editor manual approval and permanent rejection, owner-only per-record auto approval, and an approved-purchase snapshot linked to one receipt or manual origin. The same financial validation runs for manual and automatic approval. A blocked auto-selected record stays correctable and approves in the correction transaction once valid. Approved corrections update the snapshot with a revision and audit; invalid approved corrections fail without partial state.
+- Migration `0010_review_approval.sql` applied and repeated without changes. `pnpm smoke:review` passed for approval/rejection authorization, permanent rejection, idempotent approval, financial blockers, blocked auto selection, automatic approval after correction, purchase uniqueness, approved correction snapshot, inbox status, workspace scope, and immutable lifecycle audit events. `pnpm check` passed with 52 TypeScript tests, 13 Python tests, and production build. A production browser pass showed approval disabled for a synthetic arithmetic mismatch, owner auto selection while blocked, automatic approval after correction, the purchase ID, and approved inbox status. The normal Compose web service was restored afterward.
+
 ## Step 4 — Slice 4.3 verification
 
 - Added deterministic server-side warning evaluation for mandatory merchant, total, and category; OCR confidence/conflicts; tax unknown or contradictory status; exact integer arithmetic; missing export fields; and unavailable line items. Warnings expose financial/informational severity and separate approval/export blockers. The review screen displays them and reasoned confirmation of a mandatory OCR value creates an immutable revision and audit event.

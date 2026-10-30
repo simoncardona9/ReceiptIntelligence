@@ -39,5 +39,27 @@ requires `subtotalMinor - (discountMinor ?? 0) + taxMinor === totalMinor` using
 integer arithmetic. Unknown tax, missing arithmetic inputs, and unavailable
 line items are visible informational warnings. Date, currency, and payment
 method may be missing for approval, while their absence blocks export. The
-unsplit expense warning permits approval without usable line items. Approval
-and export endpoints will enforce these flags in later slices.
+unsplit expense warning permits approval without usable line items. The
+approval endpoint enforces these blockers. Export remains a later step.
+
+## Approval lifecycle
+
+`POST /api/workspaces/:workspaceId/review/:origin/:originId/lifecycle` accepts
+`expectedVersion`, `expectedBaseProposalId`, and one decision: `{"action":"approve"}`,
+`{"action":"reject","reason":"..."}`, or `{"action":"auto","enabled":true|false}`.
+It requires same-origin headers and a UUID idempotency key. Owners and editors
+can approve and reject; only owners can select per-record automatic approval.
+Approval returns `409 APPROVAL_BLOCKED` while financial blockers remain.
+Rejection is permanent. Choosing auto approval on a blocked review records the
+choice; a later valid correction creates the approved purchase in the same
+transaction as that correction. An auto choice on a ready review approves
+immediately.
+
+Approved purchases are separate, workspace-scoped snapshots linked to one
+receipt or manual origin. Their approval mode, actor, time, and review version
+are retained. A valid correction after approval appends a revision and audit
+event while updating the approved snapshot atomically. A correction that would
+introduce a financial blocker is rejected. Receipt proposal evidence and
+original manual values remain unchanged. Replaying an action cannot create a
+second purchase; lifecycle request and event records are immutable. Export is
+outside Step 4.

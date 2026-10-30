@@ -55,9 +55,7 @@ export default function ManualExpenseDetailPage() {
       )}
       {expense && (
         <>
-          <p className="muted">
-            ID: {expense.id} · En espera · Sin archivo ni extracción
-          </p>
+          <p className="muted">ID: {expense.id} · Sin archivo ni extracción</p>
           <dl>
             <dt>Comercio</dt>
             <dd>{expense.merchant}</dd>

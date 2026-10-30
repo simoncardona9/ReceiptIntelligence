@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReviewFields } from "@/server/review/fields";
 import type {
+  LifecycleAction,
   ReviewOrigin,
   ReviewRecord,
 } from "@/server/review/review-service";
@@ -61,7 +62,9 @@ export function ReviewEditor({
   const [review, setReview] = useState<ReviewRecord | null>(null);
   const [draft, setDraft] = useState<ReviewFields | null>(null);
   const [editable, setEditable] = useState(false);
+  const [role, setRole] = useState("viewer");
   const [reason, setReason] = useState("");
+  const [rejectionReason, setRejectionReason] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmFields, setConfirmFields] = useState<MandatoryField[]>([]);
@@ -92,6 +95,9 @@ export function ReviewEditor({
     };
     setReview(data.review);
     setDraft(data.review.current);
+    setRole(
+      workspaces.workspaces.find((w) => w.id === workspaceId)?.role ?? "viewer",
+    );
     setEditable(
       workspaces.workspaces.some(
         (w) => w.id === workspaceId && w.role !== "viewer",
@@ -143,6 +149,58 @@ export function ReviewEditor({
       setSaving(false);
     }
   }
+  async function decide(decision: LifecycleAction) {
+    if (!review) return;
+    setSaving(true);
+    setMessage("");
+    try {
+      const response = await fetch(`${path}/lifecycle`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": crypto.randomUUID(),
+        },
+        body: JSON.stringify({
+          expectedVersion: review.version,
+          expectedBaseProposalId: review.baseProposalId,
+          ...decision,
+        }),
+      });
+      const body = (await response.json()) as {
+        review?: ReviewRecord;
+        error?: { code?: string };
+      };
+      if (!response.ok || !body.review) {
+        if (
+          body.error?.code === "REVIEW_VERSION_CONFLICT" ||
+          body.error?.code === "REVIEW_SOURCE_CHANGED"
+        ) {
+          await load();
+          setMessage("La revisión cambió. Se cargó la versión actual.");
+        } else
+          setMessage(
+            body.error?.code === "APPROVAL_BLOCKED"
+              ? "Hay bloqueos financieros que deben resolverse."
+              : "No se pudo completar la decisión.",
+          );
+        return;
+      }
+      setReview(body.review);
+      setDraft(body.review.current);
+      setRejectionReason("");
+      setMessage(
+        decision.action === "reject"
+          ? "Rechazo permanente registrado."
+          : body.review.status === "approved"
+            ? "Compra aprobada."
+            : "Preferencia de aprobación automática guardada.",
+      );
+    } catch {
+      setMessage("No se pudo completar la decisión.");
+    } finally {
+      setSaving(false);
+    }
+  }
   if (!review || !draft)
     return (
       <section className="workspace-card">
@@ -150,6 +208,10 @@ export function ReviewEditor({
         <p>{message || "Cargando…"}</p>
       </section>
     );
+  const canEdit = editable && review.status !== "rejected";
+  const hasUnsaved =
+    JSON.stringify(draft) !== JSON.stringify(review.current) ||
+    confirmFields.length > 0;
   return (
     <section className="workspace-card">
       <h2>Correcciones</h2>
@@ -159,10 +221,17 @@ export function ReviewEditor({
       </p>
       <h3>Validación</h3>
       <p role="status">
-        {review.validation.state === "blocked"
-          ? "Aprobación bloqueada"
-          : "Lista para aprobar"}
+        {review.status === "approved"
+          ? "Compra aprobada"
+          : review.status === "rejected"
+            ? "Rechazo permanente"
+            : review.status === "blocked"
+              ? "Aprobación bloqueada"
+              : "Lista para aprobar"}
       </p>
+      {review.approvedPurchaseId && (
+        <p>Compra aprobada: {review.approvedPurchaseId}</p>
+      )}
       <ul>
         {review.validation.warnings.map((warning) => (
           <li key={warning.code}>
@@ -174,6 +243,65 @@ export function ReviewEditor({
         ))}
       </ul>
       {editable &&
+        (review.status === "review" || review.status === "blocked") && (
+          <div className="stack">
+            {hasUnsaved && <p>Guardá la corrección antes de decidir.</p>}
+            <div className="actions">
+              <button
+                type="button"
+                disabled={
+                  saving || hasUnsaved || review.validation.state === "blocked"
+                }
+                onClick={() => void decide({ action: "approve" })}
+              >
+                Aprobar compra
+              </button>
+              {role === "owner" && (
+                <button
+                  type="button"
+                  disabled={saving || hasUnsaved}
+                  onClick={() =>
+                    void decide({
+                      action: "auto",
+                      enabled: !review.autoApprove,
+                    })
+                  }
+                >
+                  {review.autoApprove
+                    ? "Desactivar aprobación automática"
+                    : "Activar aprobación automática para este registro"}
+                </button>
+              )}
+            </div>
+            {review.autoApprove && (
+              <p>
+                La aprobación automática está seleccionada. Se aplicará cuando
+                se resuelvan los bloqueos.
+              </p>
+            )}
+            <label>
+              Motivo del rechazo permanente
+              <textarea
+                value={rejectionReason}
+                disabled={saving}
+                maxLength={500}
+                onChange={(event) => setRejectionReason(event.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={
+                saving || hasUnsaved || rejectionReason.trim().length < 3
+              }
+              onClick={() =>
+                void decide({ action: "reject", reason: rejectionReason })
+              }
+            >
+              Rechazar permanentemente
+            </button>
+          </div>
+        )}
+      {canEdit &&
         review.validation.warnings.some(
           (warning) =>
             warning.code.startsWith("CONFLICT_") ||
@@ -211,7 +339,7 @@ export function ReviewEditor({
             <input
               type={key === "date" ? "date" : "text"}
               value={draft[key] ?? ""}
-              disabled={!editable || saving}
+              disabled={!canEdit || saving}
               onChange={(event) =>
                 setDraft({ ...draft, [key]: event.target.value || null })
               }
@@ -227,7 +355,7 @@ export function ReviewEditor({
               step="1"
               value={draft[key] ?? ""}
               disabled={
-                !editable || saving || (key === "taxMinor" && draft.taxUnknown)
+                !canEdit || saving || (key === "taxMinor" && draft.taxUnknown)
               }
               onChange={(event) =>
                 setDraft({
@@ -245,7 +373,7 @@ export function ReviewEditor({
           Moneda
           <select
             value={draft.currency ?? ""}
-            disabled={!editable || saving}
+            disabled={!canEdit || saving}
             onChange={(event) =>
               setDraft({
                 ...draft,
@@ -264,7 +392,7 @@ export function ReviewEditor({
           <input
             type="checkbox"
             checked={draft.taxUnknown}
-            disabled={!editable || saving}
+            disabled={!canEdit || saving}
             onChange={(event) =>
               setDraft({
                 ...draft,
@@ -283,7 +411,7 @@ export function ReviewEditor({
             Descripción
             <input
               value={item.description}
-              disabled={!editable || saving}
+              disabled={!canEdit || saving}
               onChange={(event) =>
                 setDraft({
                   ...draft,
@@ -300,7 +428,7 @@ export function ReviewEditor({
             Cantidad
             <input
               value={item.quantity ?? ""}
-              disabled={!editable || saving}
+              disabled={!canEdit || saving}
               onChange={(event) =>
                 setDraft({
                   ...draft,
@@ -317,7 +445,7 @@ export function ReviewEditor({
             Unidad
             <input
               value={item.unit ?? ""}
-              disabled={!editable || saving}
+              disabled={!canEdit || saving}
               onChange={(event) =>
                 updateLine(index, { unit: event.target.value || null })
               }
@@ -330,7 +458,7 @@ export function ReviewEditor({
               min="0"
               step="1"
               value={item.unitPriceMinor ?? ""}
-              disabled={!editable || saving}
+              disabled={!canEdit || saving}
               onChange={(event) =>
                 updateLine(index, {
                   unitPriceMinor:
@@ -348,7 +476,7 @@ export function ReviewEditor({
               min="0"
               step="1"
               value={item.discountMinor ?? ""}
-              disabled={!editable || saving}
+              disabled={!canEdit || saving}
               onChange={(event) =>
                 updateLine(index, {
                   discountMinor:
@@ -366,7 +494,7 @@ export function ReviewEditor({
               min="0"
               step="1"
               value={item.lineTotalMinor ?? ""}
-              disabled={!editable || saving}
+              disabled={!canEdit || saving}
               onChange={(event) =>
                 setDraft({
                   ...draft,
@@ -385,7 +513,7 @@ export function ReviewEditor({
               }
             />
           </label>
-          {editable && (
+          {canEdit && (
             <button
               type="button"
               disabled={saving}
@@ -401,7 +529,7 @@ export function ReviewEditor({
           )}
         </div>
       ))}
-      {editable && (
+      {canEdit && (
         <>
           <button
             type="button"

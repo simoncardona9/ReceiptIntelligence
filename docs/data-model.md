@@ -42,20 +42,22 @@ provider-neutral page evidence only for a valid completed run. Workspace queue
 controls and append-only job events record pause/retry/cancel/recovery actions.
 Extraction never changes an approved purchase directly.
 
-### ReceiptProposal and planned ProposalRevision
+### ReceiptProposal, ReviewRecord, and ReviewRevision
 
 The persisted immutable proposal belongs to a receipt and completed job. It
 contains extracted fields, confidence, source-region evidence, conflicts, and
-warnings. Proposal corrections and revision history are planned for Step 4;
-they are not yet persisted or editable. Raw provider payloads are not stored.
+warnings. A workspace-scoped review record pins the proposal used for the
+original normalized fields. Corrections change only the current review fields;
+immutable revisions retain prior/new values, confirmations, actor, and reason.
+Raw provider payloads are not stored.
 
-### ManualExpense and planned ManualExpenseRevision
+### ManualExpense and review revisions
 
 A receipt-free expense has an explicit manual origin, creator, workspace, and
 staged state. Its fields and optional line items are persisted without a
 receipt source, extraction job, OCR evidence, or implied extraction provenance.
-Shared review and approval rules, corrections, and revisions are planned for
-Step 4; revisions will retain actor, reason, and prior/new safe values.
+The same review, correction, and approval rules apply without implying OCR
+provenance. Revisions retain actor, reason, and prior/new values.
 
 ### ReceiptLineItem (proposal data; approved persistence planned)
 
@@ -63,11 +65,11 @@ Proposed line items currently live inside the immutable proposal JSON; manual
 expense lines are stored separately. Approved line-item storage is planned.
 Monetary values use integer minor units or a fixed-precision decimal type.
 
-### ApprovedPurchase (planned for Step 4)
+### ApprovedPurchase
 
 The user-approved normalized record links to exactly one origin: either a
 receipt with its proposal or a manual expense. It stores approved
-merchant/date/amount/currency/category and approval metadata. It is the
+normalized fields, approval mode, actor, time, and review version. It is the
 reporting authority for ReceiptIntelligence.
 
 ### Merchant, Category, and NormalizationSuggestion (planned)
@@ -77,10 +79,10 @@ approved data automatically.
 
 ### AuditEvent
 
-Append-only records currently cover source, intake, duplicate, manual-expense,
-and extraction actions with actor, workspace, time, entity reference, and safe
-metadata. Correction, approval, rejection, and export events are planned for
-their later slices.
+Append-only records cover source, intake, duplicate, manual-expense,
+extraction, correction, approval, auto-approval choice, and rejection actions
+with actor, workspace, time, entity reference, and safe metadata. Export events
+are planned for Step 6.
 
 ## Relationships
 
@@ -93,9 +95,8 @@ ExtractionJob ──1? ReceiptProposal (immutable, on success)
 Workspace ──< ManualExpense
 Workspace ──< AuditEvent, ExtractionJobEvent
 
-Planned: ReceiptProposal ──< ProposalRevision
-Planned: ManualExpense ──< ManualExpenseRevision
-Planned: ReceiptProposal or ManualExpense ──1 ApprovedPurchase
+ReceiptProposal or ManualExpense ──1? ReviewRecord ──< ReviewRevision
+ReviewRecord ──1? ApprovedPurchase
 Planned: Workspace ──< Merchant, Category, NormalizationSuggestion
 ```
 

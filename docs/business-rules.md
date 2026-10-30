@@ -8,6 +8,9 @@
 4. Approval requires all mandatory fields and explicit resolution of blocking warnings.
 5. Rejection preserves the source and proposal history but excludes it from approved reports.
 6. An approved purchase is corrected through a revision, never by erasing evidence.
+7. Permanent rejection cannot be reopened. Owner-selected automatic approval
+   runs the same financial validation as manual approval, including after a
+   later correction resolves blockers.
 
 ## Money and dates
 
