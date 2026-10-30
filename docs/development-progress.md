@@ -1,5 +1,11 @@
 # Development Progress
 
+## Step 4 — Slice 4.1 delivered
+
+- Created `step-4-review-approval` from updated `origin/main` on 2026-10-30.
+- The review screen presents extraction fields and the authorized source side by side, selects the relevant source and page from receipt-level field evidence, and marks normalized image or rendered PDF coordinates when present. Missing regions are explicit. PDF.js renders private PDF pages for overlays and page navigation. Existing image zoom, rotation, crop, source access, and mobile stacking remain available. Review is read-only.
+- `pnpm check` passed: formatting, lint, TypeScript, 46 TypeScript tests, 13 Python tests, and production build. The Compose production server rendered synthetic extracted PNG and two-page PDF sources beside field values; selecting the total displayed its source region on the correct image or PDF page. At 390px width, the layout stacked into one column without horizontal overflow. The local development server's HMR WebSocket did not connect through the browser tool, so the rendered check used `next start` and the normal development service was restored afterward.
+
 ## Current state — Step 3 implementation delivered; acceptance checks remain
 
 Slices 3.1–3.4 are implemented on `step-3-local-extraction`. Slice 4.1 and
