@@ -13,9 +13,11 @@ duplicates use an ordered SHA-256 fingerprint of the source content hashes.
 The source IDs must be distinct, live, and in the same workspace. A conflicting
 idempotency key returns `409`; missing or foreign sources return `404`.
 
-`GET /api/workspaces/{workspaceId}/receipts/{receiptId}` returns the staged
-receipt to any workspace member. A foreign receipt returns `404`. The request
-and stored receipt never include storage keys, file bytes, or financial fields.
+`GET /api/workspaces/{workspaceId}/receipts/{receiptId}` returns the receipt
+to any workspace member. Its status may advance through `processing`,
+`failed`, `extracted`, and `review` after extraction. A foreign receipt returns
+`404`. The request and stored receipt never include storage keys, file bytes,
+or financial fields; the read-only proposal has a separate endpoint.
 Creating the receipt, its source links, and its append-only audit event is
 atomic. No purchase is approved by these endpoints.
 

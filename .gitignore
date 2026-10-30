@@ -20,6 +20,8 @@ next-env.d.ts
 pnpm-debug.log*
 .eslintcache
 *.tsbuildinfo
+__pycache__/
+*.pyc
 
 # pnpm-generated files and local package store
 .pnpm-store/

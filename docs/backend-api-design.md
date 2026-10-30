@@ -46,20 +46,26 @@ Services and domain rules must not import OCR libraries, ORM models, database
 drivers, or object-storage SDKs. Adapters translate those systems into
 provider-neutral domain contracts.
 
-Initial contract candidates, to be finalized per slice:
+## Implemented contracts through Step 3
 
-Authentication and workspace contracts are defined in
-[auth-api.md](auth-api.md). These endpoints keep identity and membership writes
-inside transactional application services; session cookies are opaque and
-workspace selection is validated against the caller's memberships.
+Routes use `/api/workspaces/{workspaceId}` for workspace-scoped operations.
+Authentication and workspace contracts are in [auth-api.md](auth-api.md);
+session cookies are opaque, and workspace selection is checked against the
+caller's memberships. Current resource contracts are:
 
-- `POST /api/v1/receipts` — upload/stage a source.
-- `POST /api/v1/receipts/{id}/extraction-runs` — request extraction.
-- `GET /api/v1/receipts/{id}` — source, proposal, review state, and safe evidence.
-- `PATCH /api/v1/receipts/{id}/proposal` — submit corrections with reason/version.
-- `POST /api/v1/receipts/{id}/approve` — approve atomically and idempotently.
-- `POST /api/v1/receipts/{id}/reject` — reject with reason.
-- `GET /api/v1/purchases` — authorized search and currency-separated results.
+- [source-api.md](source-api.md): upload, private download, and removal.
+- [receipt-intake-api.md](receipt-intake-api.md): staged receipt creation and
+  scoped receipt read.
+- [duplicate-api.md](duplicate-api.md), [manual-expense-api.md](manual-expense-api.md),
+  and [inbox-api.md](inbox-api.md): Step 2 review and navigation.
+- [extraction-queue-api.md](extraction-queue-api.md): submit and control local
+  extraction jobs, plus queue status.
+- [canonical-proposal.md](canonical-proposal.md): read the unapproved proposal
+  for a receipt in `review`.
+
+Correction, approval, rejection, and purchase search contracts will be defined
+in their later slices. No `/api/v1/receipts` or `/api/v1/purchases` routes are
+implemented.
 
 Use UUID identifiers, ISO dates, explicit minor-unit money plus currency, stable
 error codes, bounded pagination, optimistic version checks, and consistent

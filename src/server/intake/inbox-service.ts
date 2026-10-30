@@ -5,7 +5,7 @@ import type { WorkspaceRole } from "@/server/auth/contracts";
 export type InboxEntry = {
   id: string;
   origin: "receipt" | "manual";
-  status: "staged";
+  status: "staged" | "processing" | "failed" | "extracted" | "review";
   createdAt: string;
   merchant: string | null;
   sourceCount: number;
@@ -25,7 +25,7 @@ export class InboxService {
       const result = await client.query<{
         id: string;
         origin: "receipt" | "manual";
-        status: "staged";
+        status: InboxEntry["status"];
         createdAt: Date;
         merchant: string | null;
         sourceCount: string;

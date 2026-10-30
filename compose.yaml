@@ -33,6 +33,8 @@ services:
       BOOTSTRAP_OWNER_EMAIL: ${BOOTSTRAP_OWNER_EMAIL:-}
       BOOTSTRAP_OWNER_PASSWORD: ${BOOTSTRAP_OWNER_PASSWORD:-}
       BOOTSTRAP_WORKSPACE_NAME: ${BOOTSTRAP_WORKSPACE_NAME:-Casa}
+      OCR_ENGINE: ${OCR_ENGINE:-tesseract}
+      OCR_DEVICE: ${OCR_DEVICE:-cpu}
     depends_on:
       db:
         condition: service_healthy
@@ -55,6 +57,31 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      [
+        "sh",
+        "-c",
+        "CI=true pnpm install --frozen-lockfile && pnpm db:migrate && pnpm worker:extract",
+      ]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Copy .env.example to .env and set local development values}
+      NODE_ENV: development
+      SOURCE_STORAGE_DIRECTORY: /var/lib/receipt-sources
+      OCR_ENGINE: ${OCR_ENGINE:-tesseract}
+      OCR_DEVICE: ${OCR_DEVICE:-cpu}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - source-data:/var/lib/receipt-sources
+      - node-modules:/app/node_modules
+    restart: unless-stopped
 
 volumes:
   postgres-data:

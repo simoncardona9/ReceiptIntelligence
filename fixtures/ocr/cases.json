@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "supermarket_uyu",
+      "type": "supermarket",
+      "format": "png",
+      "tags": ["clean", "uyu"],
+      "pages": [
+        [
+          ["merchant", "MERCADO SOL DEL SUR"],
+          ["date", "29/10/2026"],
+          ["description", "ARROZ BLANCO 1 KG"],
+          ["quantity", "2 UN"],
+          ["unit_price", "$ 89,00"],
+          ["line_total", "$ 178,00"],
+          ["description", "LECHE ENTERA 1 L"],
+          ["quantity", "1 UN"],
+          ["line_total", "$ 65,00"],
+          ["subtotal", "$ 243,00"],
+          ["tax", "IVA INCLUIDO $ 25,55"],
+          ["total", "TOTAL UYU $ 243,00"],
+          ["currency", "PESOS URUGUAYOS"],
+          ["payment_method", "TARJETA DEBITO"]
+        ]
+      ]
+    },
+    {
+      "id": "restaurant_uyu_skew",
+      "type": "restaurant",
+      "format": "png",
+      "tags": ["skew", "uyu"],
+      "effect": "skew",
+      "pages": [
+        [
+          ["merchant", "BISTRO DEL PUERTO"],
+          ["date", "28/10/2026"],
+          ["description", "MENU DEL DIA"],
+          ["quantity", "2"],
+          ["unit_price", "$ 450,00"],
+          ["line_total", "$ 900,00"],
+          ["discount", "DESCUENTO $ 90,00"],
+          ["subtotal", "$ 810,00"],
+          ["tax", "IVA $ 85,09"],
+          ["total", "TOTAL UYU $ 810,00"],
+          ["payment_method", "EFECTIVO"]
+        ]
+      ]
+    },
+    {
+      "id": "fuel_usd_blur",
+      "type": "fuel",
+      "format": "png",
+      "tags": ["blur", "usd"],
+      "effect": "blur",
+      "pages": [
+        [
+          ["merchant", "ESTACION RUTA 5"],
+          ["date", "27/10/2026"],
+          ["description", "NAFTA SUPER"],
+          ["quantity", "25,00 L"],
+          ["unit_price", "USD 1,80/L"],
+          ["line_total", "USD 45,00"],
+          ["subtotal", "USD 45,00"],
+          ["total", "TOTAL USD 45,00"],
+          ["currency", "DOLARES"],
+          ["payment_method", "CREDITO"]
+        ]
+      ]
+    },
+    {
+      "id": "utility_uyu_pdf",
+      "type": "utility",
+      "format": "pdf",
+      "tags": ["multipage", "missing_tax", "uyu"],
+      "pages": [
+        [
+          ["merchant", "ENERGIA DEL ESTE"],
+          ["date", "26/10/2026"],
+          ["description", "CONSUMO ELECTRICO OCTUBRE"],
+          ["quantity", "180 KWH"],
+          ["line_total", "$ 1.350,00"]
+        ],
+        [
+          ["subtotal", "$ 1.350,00"],
+          ["total", "TOTAL UYU $ 1.350,00"],
+          ["currency", "PESOS URUGUAYOS"],
+          ["payment_method", "TRANSFERENCIA"]
+        ]
+      ]
+    },
+    {
+      "id": "supermarket_long_glare",
+      "type": "supermarket",
+      "format": "png",
+      "tags": ["long", "glare", "uyu"],
+      "effect": "glare",
+      "repeat_item": 24,
+      "pages": [
+        [
+          ["merchant", "ALMACEN COSTERO"],
+          ["date", "25/10/2026"],
+          ["description", "PAN INTEGRAL"],
+          ["quantity", "1 UN"],
+          ["unit_price", "$ 75,00"],
+          ["line_total", "$ 75,00"],
+          ["subtotal", "$ 75,00"],
+          ["total", "TOTAL UYU $ 75,00"]
+        ]
+      ]
+    }
+  ]
+}

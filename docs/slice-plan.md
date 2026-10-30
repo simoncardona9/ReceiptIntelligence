@@ -2,8 +2,8 @@
 
 This is the planning breakdown for Steps 1–6. These slices are ordered and
 reviewable; approve each one individually and give it a focused implementation
-plan before work starts. Slices 1.1–1.4 are implemented; no later slice is
-approved.
+plan before work starts. Slices 1.1–3.4 are implemented; Slice 4.1 and later
+slices are not approved.
 
 ## Step 1 — Secure foundation
 
@@ -310,6 +310,34 @@ committed. **Boundary:** evaluation only; no production extraction workflow.
 
 **Dependencies/risk:** 1.1; fixture quality determines engine choice.
 
+**Status:** Approved by the user's request to start Step 3 and implemented on
+`step-3-local-extraction` on 2026-10-29. Slices 3.2–3.4 were subsequently
+approved and implemented; remaining acceptance checks are recorded in
+[development-progress.md](development-progress.md).
+
+**Implementation plan:**
+
+1. Define invented Spanish UYU/USD receipts for all four receipt types, with
+   field and line-item evidence, coordinates, and difficult-case tags. Generate
+   image/PDF sources locally; commit only text definitions and generator code.
+2. Add a provider-neutral benchmark command that runs one local OCR command per
+   source and validates versioned text-region output. Measure field and line
+   evidence recall, location overlap, errors, latency, and peak host memory.
+3. Support repeatable CPU and optional GPU runs, then compare named run reports
+   without choosing a production engine from synthetic results alone.
+4. Test scoring, malformed output, command failure/timeout, fixture generation,
+   and report privacy; document the run procedure and record verification.
+
+**Invalid cases:** unknown case IDs, missing or malformed prediction output,
+out-of-range page/coordinates/confidence, duplicate region IDs, command failure
+or timeout, and unavailable optional GPU hardware. The runner must return a
+safe error and never include raw OCR text in its report.
+
+**Data/security boundary:** the corpus contains invented values only and writes
+generated sources outside version control. This slice has no API, persistence,
+audit, production worker, extraction queue, or approval behavior. Benchmarked
+commands run locally and receive only the synthetic source path.
+
 ### Slice 3.2 — OCR adapter
 
 **Outcome:** A staged receipt can be processed locally into provider-neutral OCR
@@ -326,6 +354,25 @@ replaced behind the port; no network provider receives source content.
 
 **Dependencies/risk:** 3.1 and 1.4; process isolation and resource use.
 
+**Status:** Approved by the user's request to complete all Step 3 slices and
+implemented on `step-3-local-extraction` on 2026-10-29.
+
+**Implementation plan:** Add a version 1 JSON stdin/stdout worker contract,
+local PDF/image page rendering, PaddleOCR text-region adapter and Tesseract
+fallback adapter, CPU default and optional Paddle GPU selection. Validate
+bounded input/output, map engine exceptions to safe error codes, test source
+page order and coordinates with synthetic data, and run focused checks.
+
+**Invalid cases:** malformed contract, unsupported engine or media type,
+missing/oversize source, unreadable image/PDF, too many pages, missing engine,
+malformed OCR output, timeout/resource failure, and invalid coordinates. The
+worker must not log raw text or source paths, call a network OCR service, or
+decide persistence/approval.
+
+**Data/security risk:** source bytes remain local. The worker sees private
+source paths only after the application selects them; detailed provider errors
+must never cross its safe contract. No database migration in this slice.
+
 ### Slice 3.3 — Extraction queue
 
 **Outcome:** Users can submit and monitor extraction jobs that survive restarts.
@@ -341,6 +388,27 @@ output is not yet approved or exported.
 
 **Dependencies/risk:** 3.2; concurrency, cancellation, and recovery risk.
 
+**Status:** Approved by the user's request to complete all Step 3 slices and
+implemented on `step-3-local-extraction` on 2026-10-29.
+
+**Implementation plan:** Add persistent job/control/evidence tables and
+append-only events; workspace-scoped submission, status, retry, priority,
+cancel, pause, and resume APIs; a separate one-at-a-time local worker process;
+five-attempt backoff and restart recovery; in-app status and opt-in browser
+notification. Run migration retry, authorization/state tests, and synthetic
+database smoke checks before promoting Slice 3.4.
+
+**Invalid cases:** foreign/missing receipt or job, viewer mutation,
+editor cancel/pause, conflicting request key, duplicate active job, retry of
+non-failed job, priority outside bounds, concurrent workers, cancellation or
+pause during processing, stale running state after restart, and resource failure.
+State and event writes must commit together; cancelled/stopped work must not
+retain partial OCR evidence.
+
+**Data/security risk:** provider-neutral OCR text is sensitive and stays in
+workspace-scoped database evidence. Queue errors and events contain only safe
+codes and identifiers. Manual retry is explicit after the fifth failure.
+
 ### Slice 3.4 — Canonical normalization
 
 **Outcome:** OCR evidence becomes a provider-neutral proposal for receipt and
@@ -355,6 +423,26 @@ conflicting candidates remain visible; no provider-specific response is exposed
 as approved data. **Boundary:** proposal remains unapproved.
 
 **Dependencies/risk:** 3.2–3.3; Spanish receipt parsing and monetary safety.
+
+**Status:** Approved by the user's request to complete all Step 3 slices and
+implemented on `step-3-local-extraction` on 2026-10-29.
+
+**Implementation plan:** Define provider-neutral proposal field/line contracts
+with exact text, normalized value, per-field confidence, and source-region
+evidence. Add deterministic Spanish UYU/USD money/date/quantity parsing,
+conflict and missing-field warnings, immutable proposal persistence in the
+successful queue transaction, scoped read API, and read-only proposal display.
+Run parser tests, migration retry, synthetic worker smoke, and a full Step 3
+regression check.
+
+**Invalid cases:** malformed amount/date/currency, inconsistent candidate
+values, missing merchant/total, ambiguous line grouping, invalid source
+coordinates, foreign proposal access, and stale/cancelled job completion. No
+normalization may create approved financial state or discard original text.
+
+**Data/security risk:** normalized values are proposals only; original OCR
+text and evidence stay workspace-scoped. Unsafe card-number text must not be
+copied into proposal fields or logs. No export or approval in this slice.
 
 ## Step 4 — Review, correction, and approval
 
@@ -551,6 +639,6 @@ remaining limitations are documented. **Boundary:** no new product features.
 ## Planning status
 
 - Total planned slices: **25**.
-- Approved slices: **4** (1.1–1.4).
-- Implemented slices: **4** (1.1–1.4).
-- Later slices remain drafts and are not authorized for implementation.
+- Approved slices: **12** (1.1–3.4).
+- Implemented slices: **12** (1.1–3.4).
+- Slice 4.1 and later slices remain drafts and are not authorized for implementation.

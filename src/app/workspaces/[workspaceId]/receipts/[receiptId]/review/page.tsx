@@ -4,8 +4,41 @@ import Link from "next/link";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import type { Proposal } from "@/server/extraction/normalization";
 
-type Receipt = { id: string; status: "staged"; sourceIds: string[] };
+type Receipt = {
+  id: string;
+  status: "staged" | "processing" | "failed" | "extracted" | "review";
+  sourceIds: string[];
+};
+const fieldLabels: Record<string, string> = {
+  merchant: "Comercio",
+  date: "Fecha",
+  totalMinor: "Total",
+  currency: "Moneda",
+  subtotalMinor: "Subtotal",
+  taxMinor: "IVA",
+  paymentMethod: "Medio de pago",
+};
+const warningLabels: Record<string, string> = {
+  MISSING_MERCHANT: "comercio",
+  MISSING_DATE: "fecha",
+  MISSING_TOTAL_MINOR: "total",
+  MISSING_CURRENCY: "moneda",
+  MISSING_SUBTOTAL_MINOR: "subtotal",
+  MISSING_TAX_MINOR: "IVA",
+  MISSING_PAYMENT_METHOD: "medio de pago",
+  LINE_ITEMS_UNAVAILABLE: "ítems",
+  FIELD_CONFLICT: "valores en conflicto",
+};
+function displayValue(name: string, value: string | number): string {
+  return name.endsWith("Minor") && typeof value === "number"
+    ? new Intl.NumberFormat("es-UY", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(value / 100)
+    : String(value);
+}
 
 export default function SourceReviewPage() {
   const { workspaceId, receiptId } = useParams<{
@@ -22,6 +55,8 @@ export default function SourceReviewPage() {
   const [rotation, setRotation] = useState(0);
   const [crop, setCrop] = useState(0);
   const [error, setError] = useState("");
+  const [role, setRole] = useState<"owner" | "editor" | "viewer">("viewer");
+  const [proposal, setProposal] = useState<Proposal | null>(null);
 
   const loadReceipt = useCallback(async () => {
     try {
@@ -36,6 +71,26 @@ export default function SourceReviewPage() {
       if (!response.ok) throw new Error();
       const body = (await response.json()) as { receipt: Receipt };
       setReceipt(body.receipt);
+      const proposalResponse = await fetch(
+        `/api/workspaces/${workspaceId}/receipts/${receiptId}/proposal`,
+        { cache: "no-store" },
+      );
+      if (proposalResponse.ok) {
+        const proposalBody = (await proposalResponse.json()) as {
+          stored: { proposal: Proposal };
+        };
+        setProposal(proposalBody.stored.proposal);
+      }
+      const queueResponse = await fetch(
+        `/api/workspaces/${workspaceId}/extraction-jobs`,
+        { cache: "no-store" },
+      );
+      if (queueResponse.ok) {
+        const queueBody = (await queueResponse.json()) as {
+          queue: { role: "owner" | "editor" | "viewer" };
+        };
+        setRole(queueBody.queue.role);
+      }
     } catch {
       setError("No se pudo abrir el recibo.");
     }
@@ -46,6 +101,21 @@ export default function SourceReviewPage() {
   }, [loadReceipt]);
 
   const sourceId = receipt?.sourceIds[index];
+  async function submitExtraction() {
+    try {
+      const response = await fetch(
+        `/api/workspaces/${workspaceId}/receipts/${receiptId}/extraction-jobs`,
+        {
+          method: "POST",
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+        },
+      );
+      if (!response.ok) throw new Error();
+      router.push(`/workspaces/${workspaceId}/extraction`);
+    } catch {
+      setError("No se pudo solicitar la extracción.");
+    }
+  }
   useEffect(() => {
     if (!sourceId) return;
     let objectUrl = "";
@@ -83,8 +153,7 @@ export default function SourceReviewPage() {
       <Link href={`/workspaces/${workspaceId}/inbox`}>← Bandeja</Link>
       <h1>Revisar fuente</h1>
       <p>
-        Recibo {receiptId} ·{" "}
-        {receipt?.status === "staged" ? "En espera" : "Cargando…"}
+        Recibo {receiptId} · {receipt?.status ?? "Cargando…"}
       </p>
       {error && (
         <p role="alert" className="error">
@@ -93,10 +162,127 @@ export default function SourceReviewPage() {
       )}
       {receipt && (
         <>
+          {proposal && (
+            <section className="workspace-card">
+              <h2>Propuesta de extracción</h2>
+              <p>
+                Estos datos requieren revisión; todavía no son un gasto
+                aprobado.
+              </p>
+              <dl>
+                {Object.entries(proposal.fields).map(([name, value]) => (
+                  <div key={name}>
+                    <dt>{fieldLabels[name]}</dt>
+                    <dd>
+                      {value ? (
+                        <>
+                          {displayValue(name, value.normalized)} · Texto:{" "}
+                          {value.exact} · Confianza:{" "}
+                          {value.confidence === null
+                            ? "sin dato"
+                            : `${Math.round(value.confidence * 100)}%`}{" "}
+                          · Fuente {value.evidence.sourceId}, página{" "}
+                          {value.evidence.page + 1}
+                        </>
+                      ) : (
+                        "Sin dato"
+                      )}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <h3>Ítems detectados</h3>
+              {proposal.lineItems.length ? (
+                <ul>
+                  {proposal.lineItems.map((item, itemIndex) => (
+                    <li
+                      key={`${item.description.evidence.regionId}-${itemIndex}`}
+                    >
+                      {item.description.exact} ·{" "}
+                      {item.quantity?.normalized ?? "cantidad sin dato"}{" "}
+                      {item.unit ?? ""} · Total{" "}
+                      {item.lineTotalMinor
+                        ? displayValue(
+                            "lineTotalMinor",
+                            item.lineTotalMinor.normalized,
+                          )
+                        : "sin dato"}
+                      {item.unitPriceMinor && (
+                        <>
+                          {" "}
+                          · Precio unitario{" "}
+                          {displayValue(
+                            "unitPriceMinor",
+                            item.unitPriceMinor.normalized,
+                          )}
+                        </>
+                      )}
+                      {item.discountMinor && (
+                        <>
+                          {" "}
+                          · Descuento{" "}
+                          {displayValue(
+                            "discountMinor",
+                            item.discountMinor.normalized,
+                          )}
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>Sin ítems utilizables.</p>
+              )}
+              {proposal.conflicts.length > 0 && (
+                <div role="alert">
+                  <h3>Valores en conflicto</h3>
+                  {proposal.conflicts.map((conflict) => (
+                    <div key={conflict.field}>
+                      <p>
+                        {fieldLabels[conflict.field]}: revisar las alternativas
+                        antes de aprobar.
+                      </p>
+                      <ul>
+                        {conflict.alternatives.map((alternative, index) => (
+                          <li key={`${alternative.evidence.regionId}-${index}`}>
+                            {displayValue(
+                              conflict.field,
+                              alternative.normalized,
+                            )}{" "}
+                            · Texto: {alternative.exact} · Fuente{" "}
+                            {alternative.evidence.sourceId}, página{" "}
+                            {alternative.evidence.page + 1}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {proposal.warnings.length > 0 && (
+                <p>
+                  Datos pendientes:{" "}
+                  {proposal.warnings
+                    .map((code) => warningLabels[code] ?? "dato incompleto")
+                    .join(", ")}
+                  .
+                </p>
+              )}
+            </section>
+          )}
           <p>
             Archivo {index + 1} de {receipt.sourceIds.length}
           </p>
           <div className="actions">
+            <Link href={`/workspaces/${workspaceId}/extraction`}>
+              Ver cola de extracción
+            </Link>
+            {role !== "viewer" &&
+              ["staged", "failed", "extracted"].includes(receipt.status) && (
+                <button type="button" onClick={() => void submitExtraction()}>
+                  Procesar recibo
+                </button>
+              )}
             <button
               type="button"
               disabled={index === 0}

@@ -1,5 +1,111 @@
 # Development Progress
 
+## Current state — Step 3 implementation delivered; acceptance checks remain
+
+Slices 3.1–3.4 are implemented on `step-3-local-extraction`. Slice 4.1 and
+later slices are not approved. The completed checks below establish the local
+synthetic path, but do not close every Step 3 acceptance condition.
+
+The repository is in active development. The current process supports either
+an explicitly authorized full-step run or user approval after each slice; both
+record checks and push slice commits to the step branch. See
+[development-process.md](development-process.md). This process update does not
+authorize Step 4.
+
+- Added deterministic, provider-neutral proposal normalization for Spanish
+  receipt fields and line items. Exact text, confidence, source page/region,
+  normalized UYU/USD money and date, conflicts, and missing-field warnings are
+  preserved. Long card-number-like text is redacted before evidence storage.
+- Migration `0007_receipt_proposals.sql` adds immutable proposals. Successful
+  extraction now commits evidence, proposal, job completion, receipt `review`
+  status, and audit together. The scoped read API and source page show a
+  read-only proposal. Approval, correction, and export remain Step 4–6 work.
+- `pnpm check` passed with 46 TypeScript tests, 13 Python OCR tests, and the
+  production build. `docker compose config --quiet` and repeated migrations
+  passed. Final Compose web and worker images built and services became healthy.
+  Synthetic auth and intake smoke passed. Extraction smoke passed with both a
+  blank image and a rendered supermarket receipt; the latter confirmed total
+  24,300 minor units, UYU, two lines, and source provenance. The same smoke
+  confirmed a removed source fails without storing partial evidence or a
+  proposal. Queue-state smoke passed after the proposal change with the worker
+  stopped. One final production-build attempt hit the known intermittent
+  TypeScript configuration parse error; the immediate full `pnpm check` rerun
+  passed with the web service still stopped.
+- The local Tesseract CPU benchmark completed all five synthetic cases:
+  52/76 text evidence lines, 29/29 receipt-level lines, 23/47 line-item lines,
+  and 41/65 coordinate matches. Mean latency was 718.22 ms and peak sampled
+  host RSS was 21,256 KiB. PaddleOCR real-model and GPU runs were unavailable;
+  the adapter was checked with synthetic model output. These fixture figures
+  do not establish production accuracy.
+
+### Step 3 verification still outstanding
+
+- Run the PaddleOCR adapter with installed local models on CPU and, when
+  hardware is available, GPU; compare it with Tesseract on the same corpus.
+- Evaluate an approved private receipt corpus outside version control before
+  selecting a production OCR default. The five invented fixtures are a
+  repeatable baseline, not a production accuracy measure.
+- Exercise actual worker termination/restart during a running job, cancellation
+  while OCR is in flight, and resource exhaustion against live services. The
+  database queue-state smoke covers recovery, stale-result rejection, and
+  resource-pause transitions with the worker stopped; it does not reproduce
+  those operating conditions.
+- Manually check the browser queue, read-only proposal, and opt-in notification
+  flow across roles. Route and API smoke checks do not establish the rendered
+  interaction or browser permission behavior.
+
+## Step 3 — Slice 3.3 delivered
+
+- Added migration `0006_extraction_queue.sql`, workspace-scoped queue APIs,
+  role-aware status screen, owner queue controls, opt-in browser notification,
+  and a separate Compose worker. A global advisory lock enforces one worker at
+  a time; run tokens prevent stale/cancelled work from storing evidence.
+- Queue actions and state transitions are transactional with append-only audit.
+  Five attempts use 1/2/4/8-minute delays. Restart recovery consumes the prior
+  attempt; resource failure pauses the workspace and fails its running job.
+- `pnpm check` passed with 41 TypeScript tests, 11 Python OCR tests, and the
+  production build. Compose built the local Tesseract/Spanish worker image.
+  Migration `0006` applied, and a repeated migration was a no-op. Synthetic
+  API smoke passed for role enforcement, retries, idempotency, cancellation,
+  OCR completion, evidence, and immutable audit. With the worker stopped,
+  database smoke passed for backoff through attempt five, recovery, resource
+  pause, stop, stale-result rejection, and manual retry. The web service was
+  stopped for the production build and restarted afterward.
+
+## Step 3 — Slice 3.2 delivered
+
+- Added a versioned local OCR worker contract and replaceable TypeScript
+  `ReceiptExtractionPort`. The adapter runs an isolated Python process against
+  private temporary source files, validates output, enforces a timeout, and
+  removes the files. The worker supports local image/PDF pages, PaddleOCR with
+  explicitly installed local models, and a Tesseract Spanish TSV fallback.
+- Successful output contains provider-neutral text regions, confidence,
+  normalized boxes, page provenance, and duration. Failure codes contain no
+  OCR text or source paths. No database, API, approval, or export state changed.
+- `pnpm check` passed with 40 TypeScript tests, 11 Python OCR tests, and the
+  production build. The Compose web service was stopped during the build to
+  avoid known `.next` contention, then restarted. The local host lacks OCR
+  engine packages/models, so adapter behavior was tested with synthetic/fake
+  engine output; real OCR quality remains unmeasured.
+
+## Step 3 — Slice 3.1 delivered
+
+- Created `step-3-local-extraction` from updated `main` on 2026-10-29.
+- Added five invented Spanish receipt cases across supermarket, restaurant,
+  fuel, and utility sources. A local generator creates image/PDF files and
+  expected field/line-item boxes outside version control; difficult cases
+  cover blur, skew, glare, length, multiple pages, and missing tax.
+- Added a versioned, local OCR-region benchmark command. It validates output,
+  scores receipt-level and line-item text evidence and location overlap, and
+  records per-case errors, latency, and sampled host RSS. Failed cases count as
+  missed evidence. Reports contain no source text or OCR text.
+- `pnpm check` passed with 37 TypeScript tests, 7 Python benchmark tests, and
+  the production build. The CLI generated all five sources under `/tmp` and
+  scored an empty synthetic engine response as 0/76 evidence lines with zero
+  command failures. No real OCR candidate was available locally, so no engine
+  accuracy or CPU/GPU comparison is claimed. This slice changes no database,
+  API, production extraction, or approval behavior.
+
 ## Step 2 — Slice 2.4 delivered
 
 - Added a workspace-scoped inbox combining staged receipts and manual expenses.
@@ -64,14 +170,14 @@
   Compose, checking source/receipt duplicates, retries, ordered grouping,
   validation, workspace scope, and immutable intake audit. The existing
   `pnpm smoke:auth` suite passed after the source change.
-- `pnpm check` passes with 37 unit tests and production build. The intake
-  migration is retry-safe. No later slice has started; the Version 1 system
-  acceptance check remains a Step 6.5 task.
+- `pnpm check` passed with 37 unit tests and production build. The intake
+  migration was retry-safe. The Version 1 system acceptance check remains a
+  Step 6.5 task.
 
-## Current state — Slices 1.1–1.4 delivered
+## Step 1 — Slices 1.1–1.4 delivery record
 
-- Step 1 development is on branch `step-1-secure-foundation`, created from
-  `main`; approved Step 1 slices will use this same branch.
+- Step 1 development used branch `step-1-secure-foundation`, created from
+  `main`.
 - Slice 1.1 was approved by the user's explicit `go` instruction and implemented
   on 2026-10-28.
 - Slice 1.2 was approved by the user's request to start the next slice and
@@ -88,9 +194,8 @@
   role permissions, typed audit events, private source storage, workspace-scoped
   source access, optional environment-configured local owner bootstrap, quality
   commands, and synthetic fixtures.
-- Slice 1.2 adds the first migration for identity/workspace state. No receipt
-  tables, upload, extraction, production credentials, or real receipt data have
-  been created.
+- Slice 1.2 added the first migration for identity/workspace state. At the
+  Step 1 boundary, receipt tables, upload, and extraction had not started.
 
 ## Definition record
 
@@ -98,19 +203,19 @@
   extraction boundary, review rules, categories/products, export behavior, and
   ProyectoFinanzas integration direction.
 - The complete decision record is in [decisions.md](decisions.md).
-- Added 25 vertical slices to the roadmap; Slices 1.1–1.4 are approved and
-  implemented, while later slices remain unapproved.
+- Added 25 vertical slices to the roadmap. The Step 1 approval state at the
+  time is superseded by the current state at the top of this file.
 - Added detailed outcomes, boundaries, dependencies, risks, and acceptance
   criteria for all 25 slices in [slice-plan.md](slice-plan.md).
-- Added the local OCR evaluation plan; PaddleOCR is the current candidate and
-  Tesseract is the fallback/benchmark candidate.
+- Added the local OCR evaluation plan. The current runtime and unresolved
+  provider choice are documented in [ocr-evaluation.md](ocr-evaluation.md).
 
-## Remaining definition work
+## Remaining definition work (updated after Step 3)
 
 - Inspect ProyectoFinanzas' current import model before finalizing integration
   schemas.
-- Build the approved/synthetic receipt benchmark before finalizing the OCR
-  engine choice.
+- Add an approved private receipt corpus and compare local OCR candidates
+  before finalizing the engine choice; the synthetic benchmark is implemented.
 - Finalize slice-specific API contracts and acceptance details when each slice
   is promoted for approval.
 - Resolve deferred technical choices only when the affected development slice
