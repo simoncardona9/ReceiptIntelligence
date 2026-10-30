@@ -303,11 +303,14 @@ export default function SourceReviewPage() {
                 )}
               </section>
             )}
-            <section className="workspace-card" aria-label="Fuente del recibo">
+            <section
+              className="workspace-card source-viewer"
+              aria-label="Fuente del recibo"
+            >
               <p>
                 Archivo {index + 1} de {receipt.sourceIds.length}
               </p>
-              <div className="actions">
+              <div className="source-viewer-links">
                 <Link href={`/workspaces/${workspaceId}/extraction`}>
                   Ver cola de extracción
                 </Link>
@@ -322,6 +325,13 @@ export default function SourceReviewPage() {
                       Procesar recibo
                     </button>
                   )}
+                <Link
+                  href={`/workspaces/${workspaceId}/receipts/${receiptId}/duplicates`}
+                >
+                  Revisar posibles duplicados
+                </Link>
+              </div>
+              <div className="source-file-nav">
                 <button
                   type="button"
                   disabled={index === 0}
@@ -336,15 +346,10 @@ export default function SourceReviewPage() {
                 >
                   Siguiente archivo
                 </button>
-                <Link
-                  href={`/workspaces/${workspaceId}/receipts/${receiptId}/duplicates`}
-                >
-                  Revisar posibles duplicados
-                </Link>
               </div>
               {type.startsWith("image/") && (
                 <>
-                  <div className="actions">
+                  <div className="source-control-grid">
                     <label>
                       Zoom {zoom}%
                       <input
@@ -429,7 +434,7 @@ export default function SourceReviewPage() {
               )}
               {type === "application/pdf" && (
                 <>
-                  <div className="actions">
+                  <div className="source-control-grid">
                     <button
                       type="button"
                       disabled={page <= 1}

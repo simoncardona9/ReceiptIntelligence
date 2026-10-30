@@ -38,6 +38,16 @@ accuracy or real resource-failure behavior.
   showed no horizontal page overflow or inputs extending beyond their labels.
   The browser check used invented receipt data only.
 
+### Step 4 receipt viewer controls follow-up
+
+- Separated the source viewer's queue/duplicate links, file navigation buttons,
+  and image/PDF controls into spaced groups. Responsive controls now wrap into
+  their own grid cells instead of placing links against slider labels.
+- `pnpm check` passed with 55 TypeScript tests, 13 Python OCR tests, and the
+  production build. The synthetic receipt viewer was checked in the production
+  browser at 1170px, 900px, and 390px; links, buttons, slider labels, and the
+  receipt image did not overlap. The local web service was rebuilt and restored.
+
 ### Step 4 final check
 
 - `pnpm check` passed: Prettier, ESLint, TypeScript, 52 TypeScript tests, 13 Python OCR tests, and Next.js production build.
