@@ -62,6 +62,7 @@ caller's memberships. Current resource contracts are:
   extraction jobs, plus queue status.
 - [canonical-proposal.md](canonical-proposal.md): read the unapproved proposal
   for a receipt in `review`.
+- [review-api.md](review-api.md): read normalized review state and append reasoned corrections.
 
 Correction, approval, rejection, and purchase search contracts will be defined
 in their later slices. No `/api/v1/receipts` or `/api/v1/purchases` routes are

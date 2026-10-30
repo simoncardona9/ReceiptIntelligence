@@ -1,5 +1,11 @@
 # Development Progress
 
+## Step 4 — Slice 4.2 verification
+
+- Added normalized receipt/manual review state and editor UI. The first read stays read-only at version 0; corrections preserve immutable proposal/manual originals, reject stale versions and changed base proposals, append before/after revisions with reason and actor, and write a separate content-free audit event atomically. Idempotency keys make retries safe.
+- Migration `0008_review_revisions.sql` was applied to the local synthetic database and a repeated `pnpm db:migrate` passed. The first Compose web start timed out connecting to PostgreSQL after the temporary production UI check; recreating the web service restored connectivity. The SQL itself passed a transaction-wrapped local PostgreSQL check. `pnpm smoke:review` passed for owner/editor/viewer rules, invalid money, missing/reused keys, stale version and proposal rejection, receipt and manual corrections, retained original values, audit count, and revision immutability. `pnpm check` passed with 49 TypeScript tests, 13 Python tests, and production build. A production browser pass saved a receipt category correction and displayed its before/after history.
+- Approved-record corrections will be exercised with Slice 4.4, when approved purchases exist.
+
 ## Step 4 — Slice 4.1 delivered
 
 - Created `step-4-review-approval` from updated `origin/main` on 2026-10-30.

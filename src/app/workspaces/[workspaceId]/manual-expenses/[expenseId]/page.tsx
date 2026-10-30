@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ReviewEditor } from "../../review-editor";
 
 type Expense = {
   id: string;
@@ -79,6 +80,11 @@ export default function ManualExpenseDetailPage() {
               </li>
             ))}
           </ul>
+          <ReviewEditor
+            workspaceId={workspaceId}
+            origin="manual"
+            originId={expenseId}
+          />
         </>
       )}
     </main>

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Proposal } from "@/server/extraction/normalization";
 import type { Evidence } from "@/server/extraction/normalization";
 import { PdfPage } from "./pdf-page";
+import { ReviewEditor } from "../../../review-editor";
 
 type Receipt = {
   id: string;
@@ -484,6 +485,13 @@ export default function SourceReviewPage() {
               )}
             </section>
           </div>
+          {proposal && (
+            <ReviewEditor
+              workspaceId={workspaceId}
+              origin="receipt"
+              originId={receiptId}
+            />
+          )}
         </>
       )}
     </main>
