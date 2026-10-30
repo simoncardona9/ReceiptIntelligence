@@ -2,15 +2,16 @@
 
 ## Recommendation
 
-Use **PaddleOCR as the primary local OCR candidate**, starting with its text
+Evaluate **PaddleOCR as a primary local OCR candidate**, starting with its text
 recognition pipeline and evaluating PP-StructureV3 for document layout and
 line-item/table structure. The official documentation describes local use,
 CPU-capable deployment options, multilingual recognition including Spanish,
 and structure parsing for document images/PDFs.
 
-Keep **Tesseract** as a small, mature fallback and benchmark baseline. It has
-official Spanish language data and a simple local deployment model, but it is
-not the preferred primary engine for receipt layout and line-item detection.
+Use **Tesseract** as the current Compose CPU runtime and benchmark baseline.
+It has official Spanish language data and a simple local deployment model.
+The project has not yet compared it with real PaddleOCR models on the same
+corpus, so the production default remains undecided pending the gates below.
 
 Do not choose a local AI/document model as the first extraction dependency.
 Evaluate it only after the OCR baseline produces a measured corpus of hard
@@ -128,7 +129,8 @@ cannot justify a production engine choice. Before selecting an engine, add an
 approved private benchmark corpus outside version control, assess the same
 metrics across CPU and available GPU runs, and inspect difficult failures
 without recording receipt content in reports or logs. Canonical monetary/date
-parsing and proposal quality belong to Slice 3.4.
+parsing and proposal quality are implemented in Slice 3.4; these OCR-only
+fixture scores do not measure them.
 
 ## Recorded local baseline (2026-10-29)
 

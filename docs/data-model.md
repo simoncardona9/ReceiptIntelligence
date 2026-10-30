@@ -2,6 +2,9 @@
 
 ## Core entities
 
+The sections below include both persisted Step 1–3 entities and planned
+Step 4–6 entities. The latter are identified where they appear.
+
 ### Workspace, user, membership, and session
 
 The workspace is the tenant boundary. Membership assigns a role and every
@@ -24,63 +27,76 @@ state. Binary content is stored through the private object-storage adapter and
 is not stored in PostgreSQL or application logs. Removal keeps this metadata
 and records the actor and time.
 
-### ExtractionRun
+### Receipt
 
-Records the extraction adapter/version, status, started/completed times, safe
-error code, and provider-neutral processing metadata. It never changes an
-approved purchase directly.
+Groups one to 20 ordered, live sources within a workspace. Intake creates it
+as `staged`; extraction can move it through `processing`, `failed`,
+`extracted`, and `review`. Its source links preserve intake order and the
+ordered content-hash fingerprint supports exact duplicate detection.
 
-### ReceiptProposal and ProposalRevision
+### ExtractionJob and ExtractionEvidence
 
-The proposal contains extracted fields, confidence, field evidence/source
-locations, warnings, and validation status. A revision records corrections,
-actor, reason, and the prior/new safe values. Raw provider payloads are retained
-only if the approved retention policy permits it.
+An extraction job belongs to a receipt and records queue status, attempts,
+priority, run token, timestamps, and a safe error code. The worker stores
+provider-neutral page evidence only for a valid completed run. Workspace queue
+controls and append-only job events record pause/retry/cancel/recovery actions.
+Extraction never changes an approved purchase directly.
 
-### ManualExpense and ManualExpenseRevision
+### ReceiptProposal and planned ProposalRevision
+
+The persisted immutable proposal belongs to a receipt and completed job. It
+contains extracted fields, confidence, source-region evidence, conflicts, and
+warnings. Proposal corrections and revision history are planned for Step 4;
+they are not yet persisted or editable. Raw provider payloads are not stored.
+
+### ManualExpense and planned ManualExpenseRevision
 
 A receipt-free expense has an explicit manual origin, creator, workspace, and
-review state. Its fields and optional line items use the same validation and
-approval rules as receipt-derived proposals, but it has no receipt source,
-extraction run, OCR evidence, or implied extraction provenance. Corrections
-retain actor, reason, and prior/new safe values.
+staged state. Its fields and optional line items are persisted without a
+receipt source, extraction job, OCR evidence, or implied extraction provenance.
+Shared review and approval rules, corrections, and revisions are planned for
+Step 4; revisions will retain actor, reason, and prior/new safe values.
 
-### ReceiptLineItem
+### ReceiptLineItem (proposal data; approved persistence planned)
 
-Stores proposed or approved description, quantity, unit, unit price, tax, and
-total with currency and evidence. Monetary values use integer minor units or a
-fixed-precision decimal type.
+Proposed line items currently live inside the immutable proposal JSON; manual
+expense lines are stored separately. Approved line-item storage is planned.
+Monetary values use integer minor units or a fixed-precision decimal type.
 
-### ApprovedPurchase
+### ApprovedPurchase (planned for Step 4)
 
 The user-approved normalized record links to exactly one origin: either a
-receipt source with its proposal or a manual expense. It stores approved
+receipt with its proposal or a manual expense. It stores approved
 merchant/date/amount/currency/category and approval metadata. It is the
 reporting authority for ReceiptIntelligence.
 
-### Merchant, Category, and NormalizationSuggestion
+### Merchant, Category, and NormalizationSuggestion (planned)
 
 Workspace-scoped normalized entities and suggestions. Suggestions never change
 approved data automatically.
 
 ### AuditEvent
 
-Append-only record of upload, extraction, correction, approval, rejection,
-export, link, retention, and deletion actions with actor, workspace, time,
-action, entity reference, and safe metadata.
+Append-only records currently cover source, intake, duplicate, manual-expense,
+and extraction actions with actor, workspace, time, entity reference, and safe
+metadata. Correction, approval, rejection, and export events are planned for
+their later slices.
 
 ## Relationships
 
 ```text
 Workspace ──< Membership >── User
-Workspace ──< ReceiptSource ──< ExtractionRun
-ReceiptSource ──< ReceiptProposal ──< ProposalRevision
-ManualExpense ──< ManualExpenseRevision
-ReceiptProposal ──< ReceiptLineItem
-ReceiptProposal ─┐
-                 ├──1 ApprovedPurchase ──< ReceiptLineItem
-ManualExpense ───┘
-Workspace ──< Merchant, Category, AuditEvent
+Workspace ──< Receipt ──< ReceiptSource (ordered links)
+Workspace ──< ReceiptSource (private source metadata)
+Receipt ──< ExtractionJob ──1? ExtractionEvidence
+ExtractionJob ──1? ReceiptProposal (immutable, on success)
+Workspace ──< ManualExpense
+Workspace ──< AuditEvent, ExtractionJobEvent
+
+Planned: ReceiptProposal ──< ProposalRevision
+Planned: ManualExpense ──< ManualExpenseRevision
+Planned: ReceiptProposal or ManualExpense ──1 ApprovedPurchase
+Planned: Workspace ──< Merchant, Category, NormalizationSuggestion
 ```
 
 The approved model must remain separate from proposals so reprocessing or a

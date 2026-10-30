@@ -311,7 +311,9 @@ committed. **Boundary:** evaluation only; no production extraction workflow.
 **Dependencies/risk:** 1.1; fixture quality determines engine choice.
 
 **Status:** Approved by the user's request to start Step 3 and implemented on
-`step-3-local-extraction` on 2026-10-29. Later Step 3 slices are not approved.
+`step-3-local-extraction` on 2026-10-29. Slices 3.2–3.4 were subsequently
+approved and implemented; remaining acceptance checks are recorded in
+[development-progress.md](development-progress.md).
 
 **Implementation plan:**
 

@@ -1,6 +1,16 @@
 # Development Progress
 
-## Step 3 — Slice 3.4 delivered and complete Step 3 check
+## Current state — Step 3 implementation delivered; acceptance checks remain
+
+Slices 3.1–3.4 are implemented on `step-3-local-extraction`. Slice 4.1 and
+later slices are not approved. The completed checks below establish the local
+synthetic path, but do not close every Step 3 acceptance condition.
+
+The repository is in active development. The current process supports either
+an explicitly authorized full-step run or user approval after each slice; both
+record checks and push slice commits to the step branch. See
+[development-process.md](development-process.md). This process update does not
+authorize Step 4.
 
 - Added deterministic, provider-neutral proposal normalization for Spanish
   receipt fields and line items. Exact text, confidence, source page/region,
@@ -27,6 +37,22 @@
   host RSS was 21,256 KiB. PaddleOCR real-model and GPU runs were unavailable;
   the adapter was checked with synthetic model output. These fixture figures
   do not establish production accuracy.
+
+### Step 3 verification still outstanding
+
+- Run the PaddleOCR adapter with installed local models on CPU and, when
+  hardware is available, GPU; compare it with Tesseract on the same corpus.
+- Evaluate an approved private receipt corpus outside version control before
+  selecting a production OCR default. The five invented fixtures are a
+  repeatable baseline, not a production accuracy measure.
+- Exercise actual worker termination/restart during a running job, cancellation
+  while OCR is in flight, and resource exhaustion against live services. The
+  database queue-state smoke covers recovery, stale-result rejection, and
+  resource-pause transitions with the worker stopped; it does not reproduce
+  those operating conditions.
+- Manually check the browser queue, read-only proposal, and opt-in notification
+  flow across roles. Route and API smoke checks do not establish the rendered
+  interaction or browser permission behavior.
 
 ## Step 3 — Slice 3.3 delivered
 
@@ -144,14 +170,14 @@
   Compose, checking source/receipt duplicates, retries, ordered grouping,
   validation, workspace scope, and immutable intake audit. The existing
   `pnpm smoke:auth` suite passed after the source change.
-- `pnpm check` passes with 37 unit tests and production build. The intake
-  migration is retry-safe. No later slice has started; the Version 1 system
-  acceptance check remains a Step 6.5 task.
+- `pnpm check` passed with 37 unit tests and production build. The intake
+  migration was retry-safe. The Version 1 system acceptance check remains a
+  Step 6.5 task.
 
-## Current state — Slices 1.1–1.4 delivered
+## Step 1 — Slices 1.1–1.4 delivery record
 
-- Step 1 development is on branch `step-1-secure-foundation`, created from
-  `main`; approved Step 1 slices will use this same branch.
+- Step 1 development used branch `step-1-secure-foundation`, created from
+  `main`.
 - Slice 1.1 was approved by the user's explicit `go` instruction and implemented
   on 2026-10-28.
 - Slice 1.2 was approved by the user's request to start the next slice and
@@ -168,9 +194,8 @@
   role permissions, typed audit events, private source storage, workspace-scoped
   source access, optional environment-configured local owner bootstrap, quality
   commands, and synthetic fixtures.
-- Slice 1.2 adds the first migration for identity/workspace state. No receipt
-  tables, upload, extraction, production credentials, or real receipt data have
-  been created.
+- Slice 1.2 added the first migration for identity/workspace state. At the
+  Step 1 boundary, receipt tables, upload, and extraction had not started.
 
 ## Definition record
 
@@ -178,19 +203,19 @@
   extraction boundary, review rules, categories/products, export behavior, and
   ProyectoFinanzas integration direction.
 - The complete decision record is in [decisions.md](decisions.md).
-- Added 25 vertical slices to the roadmap; Slices 1.1–1.4 are approved and
-  implemented, while later slices remain unapproved.
+- Added 25 vertical slices to the roadmap. The Step 1 approval state at the
+  time is superseded by the current state at the top of this file.
 - Added detailed outcomes, boundaries, dependencies, risks, and acceptance
   criteria for all 25 slices in [slice-plan.md](slice-plan.md).
-- Added the local OCR evaluation plan; PaddleOCR is the current candidate and
-  Tesseract is the fallback/benchmark candidate.
+- Added the local OCR evaluation plan. The current runtime and unresolved
+  provider choice are documented in [ocr-evaluation.md](ocr-evaluation.md).
 
-## Remaining definition work
+## Remaining definition work (updated after Step 3)
 
 - Inspect ProyectoFinanzas' current import model before finalizing integration
   schemas.
-- Build the approved/synthetic receipt benchmark before finalizing the OCR
-  engine choice.
+- Add an approved private receipt corpus and compare local OCR candidates
+  before finalizing the engine choice; the synthetic benchmark is implemented.
 - Finalize slice-specific API contracts and acceptance details when each slice
   is promoted for approval.
 - Resolve deferred technical choices only when the affected development slice

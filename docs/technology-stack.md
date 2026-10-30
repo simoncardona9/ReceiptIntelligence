@@ -26,9 +26,10 @@ the baseline and optional GPU acceleration is supported. The extraction
 boundary remains replaceable so local engines can be evaluated without changing
 the approved domain model.
 
-The current candidate is PaddleOCR as the primary adapter, with Tesseract as a
-fallback/benchmark. See [ocr-evaluation.md](ocr-evaluation.md). This is a
-provisional implementation choice until the receipt benchmark is complete.
+The Compose worker currently runs Tesseract with Spanish data on CPU. PaddleOCR
+is an optional local adapter whose real-model CPU/GPU behavior has not yet been
+verified. The production default remains provisional until candidates are
+compared on an approved private corpus. See [ocr-evaluation.md](ocr-evaluation.md).
 
 ## Replaceability requirements
 

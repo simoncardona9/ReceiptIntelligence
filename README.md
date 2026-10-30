@@ -24,7 +24,8 @@ Compose network. The example credentials are local development values and must
 not be reused elsewhere.
 
 The Compose startup applies pending database migrations before starting the
-app, starts the local extraction worker, and creates the optional bootstrap owner on first run. Configure
+app, starts the local extraction worker, and creates the optional bootstrap
+owner on first run. Configure
 `BOOTSTRAP_OWNER_EMAIL` and `BOOTSTRAP_OWNER_PASSWORD` in `.env` to choose the
 login; `BOOTSTRAP_WORKSPACE_NAME` defaults to `Casa`. The example values are
 synthetic local credentials only. Bootstrap is idempotent and never changes an
@@ -47,16 +48,36 @@ build. `pnpm dev` and `pnpm start` validate required environment settings
 before starting. Configuration errors name the invalid variable and never
 print its value.
 
-Run `pnpm db:migrate` to apply pending migrations manually. With the Compose
-runtime running, `pnpm smoke:auth` exercises registration, sessions, workspace
-creation and selection, access requests, owner decisions, and safe retries using
-synthetic accounts. It leaves those synthetic accounts in the local database.
-`pnpm smoke:extraction` exercises the local OCR queue with a synthetic image
-when run inside Compose with `APP_BASE_URL=http://web:3000`.
+Run `docker compose exec -T web pnpm db:migrate` to apply pending migrations
+manually. With Compose running, run the synthetic smoke checks inside `web`,
+where both the app and database are reachable:
+
+```sh
+docker compose exec -T -e APP_BASE_URL=http://web:3000 web pnpm smoke:auth
+docker compose exec -T -e APP_BASE_URL=http://web:3000 web pnpm smoke:intake
+docker compose exec -T -e APP_BASE_URL=http://web:3000 web pnpm smoke:extraction
+```
+
+The auth check creates synthetic accounts in the local database. The intake
+check covers source and receipt intake. The extraction check covers the local
+OCR queue with synthetic images. The queue-state check requires an extraction
+smoke record and the worker stopped:
+
+```sh
+docker compose stop worker
+docker compose exec -T web pnpm smoke:queue-state
+docker compose start worker
+```
+
+It checks retry/backoff, recovery, cancellation, resource pause, and
+stale-result rejection against the local database. See
+[docs/development-progress.md](docs/development-progress.md) for completed
+checks and remaining Step 3 acceptance verification.
 
 All bundled examples are synthetic. Do not place receipts, receipt-derived
 values, credentials, or production configuration in this repository.
 
-For the synthetic local OCR evaluation fixture and benchmark, see
-[docs/ocr-evaluation.md](docs/ocr-evaluation.md). This is evaluation tooling;
-it does not process staged receipts in the application.
+For the separate synthetic OCR evaluation fixture and benchmark, see
+[docs/ocr-evaluation.md](docs/ocr-evaluation.md). The application uses the
+local extraction queue described in
+[docs/extraction-queue-api.md](docs/extraction-queue-api.md).
