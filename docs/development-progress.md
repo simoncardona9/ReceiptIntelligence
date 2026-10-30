@@ -27,6 +27,17 @@ accuracy or real resource-failure behavior.
   with a temporary local command override because its usual startup install
   retried npm registry DNS; no dependency or repository configuration changed.
 
+### Step 4 receipt review layout follow-up
+
+- Reproduced overlapping correction inputs with a synthetic OCR receipt. The
+  editor now constrains inputs to their grid cells, gives fields enough width,
+  aligns the tax checkbox, and separates adjacent form sections. Proposal
+  values, original text, confidence, and source actions have distinct rows.
+- `pnpm check` passed with 55 TypeScript tests, 13 Python OCR tests, and a
+  production build. Production browser checks at 390px, 900px, and 1170px
+  showed no horizontal page overflow or inputs extending beyond their labels.
+  The browser check used invented receipt data only.
+
 ### Step 4 final check
 
 - `pnpm check` passed: Prettier, ESLint, TypeScript, 52 TypeScript tests, 13 Python OCR tests, and Next.js production build.

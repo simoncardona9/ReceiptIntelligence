@@ -184,31 +184,36 @@ export default function SourceReviewPage() {
                   Estos datos requieren revisión; todavía no son un gasto
                   aprobado.
                 </p>
-                <dl>
+                <dl className="proposal-fields">
                   {Object.entries(proposal.fields).map(([name, value]) => (
-                    <div key={name}>
+                    <div className="proposal-field" key={name}>
                       <dt>{fieldLabels[name]}</dt>
                       <dd>
                         {value ? (
                           <>
-                            {displayValue(name, value.normalized)} · Texto:{" "}
-                            {value.exact} · Confianza:{" "}
-                            {value.confidence === null
-                              ? "sin dato"
-                              : `${Math.round(value.confidence * 100)}%`}{" "}
-                            ·{" "}
-                            <button
-                              type="button"
-                              onClick={() => showEvidence(value.evidence)}
-                            >
-                              Ver fuente{" "}
-                              {receipt.sourceIds.indexOf(
-                                value.evidence.sourceId,
-                              ) + 1}
-                              , página {value.evidence.page + 1}
-                            </button>
-                            {value.evidence.box === null &&
-                              " · Región no disponible"}
+                            <span className="proposal-value">
+                              {displayValue(name, value.normalized)}
+                            </span>
+                            <span className="proposal-meta">
+                              Texto original: {value.exact} · Confianza:{" "}
+                              {value.confidence === null
+                                ? "sin dato"
+                                : `${Math.round(value.confidence * 100)}%`}
+                            </span>
+                            <span className="proposal-source">
+                              <button
+                                type="button"
+                                onClick={() => showEvidence(value.evidence)}
+                              >
+                                Ver fuente{" "}
+                                {receipt.sourceIds.indexOf(
+                                  value.evidence.sourceId,
+                                ) + 1}
+                                , página {value.evidence.page + 1}
+                              </button>
+                              {value.evidence.box === null &&
+                                " · Región no disponible"}
+                            </span>
                           </>
                         ) : (
                           "Sin dato"

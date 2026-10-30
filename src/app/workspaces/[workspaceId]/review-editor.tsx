@@ -303,7 +303,7 @@ export function ReviewEditor({
     confirmFields.length > 0 ||
     invalidMoney.size > 0;
   return (
-    <section className="workspace-card">
+    <section className="workspace-card review-editor">
       <h2>Correcciones</h2>
       <p>
         Versión {review.version}. Los valores originales y cada cambio quedan
@@ -475,7 +475,7 @@ export function ReviewEditor({
             <option value="USD">USD</option>
           </select>
         </label>
-        <label>
+        <label className="review-checkbox">
           <input
             type="checkbox"
             checked={draft.taxUnknown}
