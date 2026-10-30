@@ -15,6 +15,8 @@
 ## Money and dates
 
 - Preserve the source display value and normalized minor-unit value.
+- Display and accept monetary amounts in pesos or dollars with two decimal
+  places in the UI; convert exactly to integer centésimos at the API boundary.
 - Preserve the receipt currency; never combine currencies implicitly.
 - Tax and subtotal must reconcile to the total when all required values are present.
 - A mismatch is a review warning or blocking error according to configured severity.

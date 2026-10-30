@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { Proposal } from "@/server/extraction/normalization";
 import type { Evidence } from "@/server/extraction/normalization";
+import { pesosDisplay } from "@/app/money";
 import { PdfPage } from "./pdf-page";
 import { ReviewEditor } from "../../../review-editor";
 
@@ -36,10 +37,7 @@ const warningLabels: Record<string, string> = {
 };
 function displayValue(name: string, value: string | number): string {
   return name.endsWith("Minor") && typeof value === "number"
-    ? new Intl.NumberFormat("es-UY", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(value / 100)
+    ? pesosDisplay(value)
     : String(value);
 }
 

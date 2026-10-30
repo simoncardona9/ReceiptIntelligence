@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { pesosDisplay } from "@/app/money";
 import { ReviewEditor } from "../../review-editor";
 
 type Expense = {
@@ -63,7 +64,7 @@ export default function ManualExpenseDetailPage() {
             <dd>{expense.date}</dd>
             <dt>Total</dt>
             <dd>
-              {expense.totalMinor} centésimos {expense.currency}
+              {pesosDisplay(expense.totalMinor)} {expense.currency}
             </dd>
             <dt>Categoría provisional</dt>
             <dd>{expense.categoryName ?? "Sin categoría"}</dd>
@@ -74,7 +75,7 @@ export default function ManualExpenseDetailPage() {
             {expense.lines.map((line, index) => (
               <li key={index}>
                 {line.description} · {line.quantityMilli} milésimos ·{" "}
-                {line.totalMinor} centésimos
+                {pesosDisplay(line.totalMinor)} {expense.currency}
               </li>
             ))}
           </ul>

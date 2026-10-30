@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { parsePesos } from "@/app/money";
 
-type Line = { description: string; quantityMilli: string; totalMinor: string };
+type Line = { description: string; quantityMilli: string; totalPesos: string };
 
 export default function NewManualExpensePage() {
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -12,7 +13,7 @@ export default function NewManualExpensePage() {
   const [allowed, setAllowed] = useState(false);
   const [merchant, setMerchant] = useState("");
   const [date, setDate] = useState("");
-  const [totalMinor, setTotalMinor] = useState("");
+  const [totalPesos, setTotalPesos] = useState("");
   const [currency, setCurrency] = useState<"UYU" | "USD">("UYU");
   const [categoryName, setCategoryName] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
@@ -56,6 +57,14 @@ export default function NewManualExpensePage() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const parsedTotal = parsePesos(totalPesos);
+    const parsedLines = lines.map((line) => parsePesos(line.totalPesos));
+    if (parsedTotal === null || parsedLines.some((amount) => amount === null)) {
+      setError(
+        "Ingresa importes válidos con hasta dos decimales, por ejemplo 123,45.",
+      );
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -70,15 +79,15 @@ export default function NewManualExpensePage() {
           body: JSON.stringify({
             merchant,
             date,
-            totalMinor: Number(totalMinor),
+            totalMinor: parsedTotal,
             currency,
             ...(categoryName.trim()
               ? { categoryName: categoryName.trim() }
               : {}),
-            lines: lines.map((line) => ({
+            lines: lines.map((line, index) => ({
               description: line.description,
               quantityMilli: Number(line.quantityMilli),
-              totalMinor: Number(line.totalMinor),
+              totalMinor: parsedLines[index],
             })),
           }),
         },
@@ -134,14 +143,14 @@ export default function NewManualExpensePage() {
             />
           </label>
           <label>
-            Total en centésimos
+            Total en {currency === "UYU" ? "pesos" : "dólares"} ({currency})
             <input
               required
-              type="number"
-              min="0"
-              step="1"
-              value={totalMinor}
-              onChange={(event) => setTotalMinor(event.target.value)}
+              type="text"
+              inputMode="decimal"
+              placeholder="123,45"
+              value={totalPesos}
+              onChange={(event) => setTotalPesos(event.target.value)}
             />
           </label>
           <label>
@@ -193,15 +202,15 @@ export default function NewManualExpensePage() {
                 />
               </label>
               <label>
-                Total en centésimos
+                Total en {currency === "UYU" ? "pesos" : "dólares"} ({currency})
                 <input
                   required
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={line.totalMinor}
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="123,45"
+                  value={line.totalPesos}
                   onChange={(event) =>
-                    editLine(index, "totalMinor", event.target.value)
+                    editLine(index, "totalPesos", event.target.value)
                   }
                 />
               </label>
@@ -222,7 +231,7 @@ export default function NewManualExpensePage() {
             onClick={() =>
               setLines((current) => [
                 ...current,
-                { description: "", quantityMilli: "1000", totalMinor: "" },
+                { description: "", quantityMilli: "1000", totalPesos: "" },
               ])
             }
           >

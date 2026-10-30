@@ -9,6 +9,24 @@ manual expenses. Step 5 is not authorized. The Step 3 OCR and worker acceptance
 limits below remain open; the synthetic checks do not measure private-corpus
 accuracy or real resource-failure behavior.
 
+### Step 4 money UI follow-up
+
+- The intake, manual expense, and review forms now accept decimal pesos for UYU
+  and dollars for USD, including comma decimals. The UI converts amounts exactly
+  to integer centésimos at the API boundary; detail, proposal, editor, and
+  revision displays show decimal currency amounts. API and database contracts
+  remain integer minor units.
+- `pnpm check` passed: Prettier, ESLint, TypeScript, 55 TypeScript tests, 13
+  Python OCR tests, and the production build. Conversion tests cover grouped
+  values, exact centésimos, invalid precision, and unsafe integers. The
+  synthetic Compose `pnpm smoke:review` check passed after the UI change.
+- A production browser check with synthetic data rejected `1,234` on manual
+  creation, stored `123,45` as `12345` minor units, and displayed `123,45 UYU`.
+  Review rejected `123,456`, saved `123,46`, and displayed the revision as
+  `123,45 → 123,46`. The Compose web service was restored healthy afterward
+  with a temporary local command override because its usual startup install
+  retried npm registry DNS; no dependency or repository configuration changed.
+
 ### Step 4 final check
 
 - `pnpm check` passed: Prettier, ESLint, TypeScript, 52 TypeScript tests, 13 Python OCR tests, and Next.js production build.

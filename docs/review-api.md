@@ -13,6 +13,8 @@ request headers, a UUID `Idempotency-Key`, and JSON with `expectedVersion`,
 `fields` object. A receipt correction must identify the proposal from its GET
 response; a manual correction uses `null`. Optional fields are `null`, not
 omitted. Money is integer minor units. `lineItems` supports at most 200 lines.
+The review UI displays and accepts decimal pesos or dollars while this contract
+continues to use integer centésimos.
 
 Each successful correction updates the current version, inserts an immutable
 before/after revision with actor and reason, and appends a content-free audit

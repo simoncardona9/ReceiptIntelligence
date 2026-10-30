@@ -8,6 +8,8 @@ import type {
   ReviewRecord,
 } from "@/server/review/review-service";
 import type { MandatoryField } from "@/server/review/validation";
+import { MoneyInput } from "@/app/money-input";
+import { pesosDisplay } from "@/app/money";
 
 const warningLabels: Record<string, string> = {
   MISSING_MERCHANT: "Falta comercio",
@@ -31,11 +33,11 @@ const warningLabels: Record<string, string> = {
 const labels: Record<keyof ReviewFields, string> = {
   merchant: "Comercio",
   date: "Fecha",
-  totalMinor: "Total (centésimos)",
+  totalMinor: "Total",
   currency: "Moneda",
-  subtotalMinor: "Subtotal (centésimos)",
-  discountMinor: "Descuento (centésimos)",
-  taxMinor: "IVA (centésimos)",
+  subtotalMinor: "Subtotal",
+  discountMinor: "Descuento",
+  taxMinor: "IVA",
   taxUnknown: "IVA desconocido",
   paymentMethod: "Medio de pago",
   categoryName: "Categoría provisional",
@@ -48,6 +50,45 @@ const moneyKeys = [
   "taxMinor",
 ] as const;
 const textKeys = ["merchant", "date", "paymentMethod", "categoryName"] as const;
+const moneyLabel = (label: string, currency: ReviewFields["currency"]) =>
+  `${label} (${currency === "UYU" ? "pesos UYU" : currency === "USD" ? "dólares USD" : "moneda sin definir"})`;
+
+function revisionValue(
+  key: keyof ReviewFields,
+  value: ReviewFields[keyof ReviewFields],
+): string {
+  if (value === null) return "Sin dato";
+  if (
+    moneyKeys.some((moneyKey) => moneyKey === key) &&
+    typeof value === "number"
+  )
+    return pesosDisplay(value);
+  if (key === "lineItems" && Array.isArray(value))
+    return value.length === 0
+      ? "Sin ítems"
+      : value
+          .map((item, index) =>
+            [
+              `${index + 1}. ${item.description}`,
+              item.quantity ? `cantidad ${item.quantity}` : null,
+              item.unit ? `unidad ${item.unit}` : null,
+              item.unitPriceMinor === null
+                ? null
+                : `precio ${pesosDisplay(item.unitPriceMinor)}`,
+              item.discountMinor === null
+                ? null
+                : `descuento ${pesosDisplay(item.discountMinor)}`,
+              item.lineTotalMinor === null
+                ? null
+                : `total ${pesosDisplay(item.lineTotalMinor)}`,
+            ]
+              .filter(Boolean)
+              .join(" · "),
+          )
+          .join("; ");
+  if (typeof value === "boolean") return value ? "Sí" : "No";
+  return String(value);
+}
 
 export function ReviewEditor({
   workspaceId,
@@ -68,6 +109,16 @@ export function ReviewEditor({
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmFields, setConfirmFields] = useState<MandatoryField[]>([]);
+  const [invalidMoney, setInvalidMoney] = useState<Set<string>>(new Set());
+  const [lineIds, setLineIds] = useState<string[]>([]);
+  function markMoneyInvalid(key: string, invalid: boolean) {
+    setInvalidMoney((current) => {
+      const next = new Set(current);
+      if (invalid) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }
   function updateLine(
     index: number,
     patch: Partial<ReviewFields["lineItems"][number]>,
@@ -79,6 +130,38 @@ export function ReviewEditor({
         n === index ? { ...row, ...patch } : row,
       ),
     });
+  }
+  function removeLine(index: number) {
+    if (!draft) return;
+    const id = lineIds[index];
+    setDraft({
+      ...draft,
+      lineItems: draft.lineItems.filter((_, at) => at !== index),
+    });
+    setLineIds((current) => current.filter((_, at) => at !== index));
+    if (id)
+      setInvalidMoney(
+        (current) =>
+          new Set([...current].filter((key) => !key.startsWith(`line:${id}:`))),
+      );
+  }
+  function addLine() {
+    if (!draft) return;
+    setDraft({
+      ...draft,
+      lineItems: [
+        ...draft.lineItems,
+        {
+          description: "",
+          quantity: null,
+          unit: null,
+          unitPriceMinor: null,
+          discountMinor: null,
+          lineTotalMinor: null,
+        },
+      ],
+    });
+    setLineIds((current) => [...current, crypto.randomUUID()]);
   }
   const load = useCallback(async () => {
     const [reviewResponse, workspaceResponse] = await Promise.all([
@@ -95,6 +178,8 @@ export function ReviewEditor({
     };
     setReview(data.review);
     setDraft(data.review.current);
+    setLineIds(data.review.current.lineItems.map(() => crypto.randomUUID()));
+    setInvalidMoney(new Set());
     setRole(
       workspaces.workspaces.find((w) => w.id === workspaceId)?.role ?? "viewer",
     );
@@ -109,7 +194,7 @@ export function ReviewEditor({
     return () => window.clearTimeout(timer);
   }, [load]);
   async function save() {
-    if (!review || !draft) return;
+    if (!review || !draft || invalidMoney.size > 0) return;
     setSaving(true);
     setMessage("");
     try {
@@ -140,6 +225,8 @@ export function ReviewEditor({
       const body = (await response.json()) as { review: ReviewRecord };
       setReview(body.review);
       setDraft(body.review.current);
+      setLineIds(body.review.current.lineItems.map(() => crypto.randomUUID()));
+      setInvalidMoney(new Set());
       setReason("");
       setConfirmFields([]);
       setMessage("Corrección guardada.");
@@ -187,6 +274,8 @@ export function ReviewEditor({
       }
       setReview(body.review);
       setDraft(body.review.current);
+      setLineIds(body.review.current.lineItems.map(() => crypto.randomUUID()));
+      setInvalidMoney(new Set());
       setRejectionReason("");
       setMessage(
         decision.action === "reject"
@@ -211,7 +300,8 @@ export function ReviewEditor({
   const canEdit = editable && review.status !== "rejected";
   const hasUnsaved =
     JSON.stringify(draft) !== JSON.stringify(review.current) ||
-    confirmFields.length > 0;
+    confirmFields.length > 0 ||
+    invalidMoney.size > 0;
   return (
     <section className="workspace-card">
       <h2>Correcciones</h2>
@@ -348,23 +438,20 @@ export function ReviewEditor({
         ))}
         {moneyKeys.map((key) => (
           <label key={key}>
-            {labels[key]}
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={draft[key] ?? ""}
+            {moneyLabel(labels[key], draft.currency)}
+            <MoneyInput
+              key={`${review.version}:${review.baseProposalId}:${key}:${key === "taxMinor" && draft.taxUnknown ? "unknown" : "known"}`}
+              valueMinor={draft[key]}
               disabled={
                 !canEdit || saving || (key === "taxMinor" && draft.taxUnknown)
               }
-              onChange={(event) =>
-                setDraft({
-                  ...draft,
-                  [key]:
-                    event.target.value === ""
-                      ? null
-                      : Number(event.target.value),
-                })
+              onChangeMinor={(value) =>
+                setDraft((current) =>
+                  current ? { ...current, [key]: value } : current,
+                )
+              }
+              onInvalidChange={(invalid) =>
+                markMoneyInvalid(`field:${key}`, invalid)
               }
             />
           </label>
@@ -393,20 +480,21 @@ export function ReviewEditor({
             type="checkbox"
             checked={draft.taxUnknown}
             disabled={!canEdit || saving}
-            onChange={(event) =>
+            onChange={(event) => {
+              markMoneyInvalid("field:taxMinor", false);
               setDraft({
                 ...draft,
                 taxUnknown: event.target.checked,
                 taxMinor: event.target.checked ? null : draft.taxMinor,
-              })
-            }
+              });
+            }}
           />{" "}
           IVA desconocido
         </label>
       </div>
       <h3>Ítems normalizados</h3>
       {draft.lineItems.map((item, index) => (
-        <div className="review-line" key={index}>
+        <div className="review-line" key={lineIds[index] ?? index}>
           <label>
             Descripción
             <input
@@ -452,64 +540,53 @@ export function ReviewEditor({
             />
           </label>
           <label>
-            Precio unitario (centésimos)
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={item.unitPriceMinor ?? ""}
+            {moneyLabel("Precio unitario", draft.currency)}
+            <MoneyInput
+              key={`${review.version}:${lineIds[index]}:unitPriceMinor`}
+              valueMinor={item.unitPriceMinor}
               disabled={!canEdit || saving}
-              onChange={(event) =>
-                updateLine(index, {
-                  unitPriceMinor:
-                    event.target.value === ""
-                      ? null
-                      : Number(event.target.value),
-                })
+              onChangeMinor={(value) =>
+                updateLine(index, { unitPriceMinor: value })
+              }
+              onInvalidChange={(invalid) =>
+                markMoneyInvalid(
+                  `line:${lineIds[index]}:unitPriceMinor`,
+                  invalid,
+                )
               }
             />
           </label>
           <label>
-            Descuento (centésimos)
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={item.discountMinor ?? ""}
+            {moneyLabel("Descuento", draft.currency)}
+            <MoneyInput
+              key={`${review.version}:${lineIds[index]}:discountMinor`}
+              valueMinor={item.discountMinor}
               disabled={!canEdit || saving}
-              onChange={(event) =>
-                updateLine(index, {
-                  discountMinor:
-                    event.target.value === ""
-                      ? null
-                      : Number(event.target.value),
-                })
+              onChangeMinor={(value) =>
+                updateLine(index, { discountMinor: value })
+              }
+              onInvalidChange={(invalid) =>
+                markMoneyInvalid(
+                  `line:${lineIds[index]}:discountMinor`,
+                  invalid,
+                )
               }
             />
           </label>
           <label>
-            Total (centésimos)
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={item.lineTotalMinor ?? ""}
+            {moneyLabel("Total", draft.currency)}
+            <MoneyInput
+              key={`${review.version}:${lineIds[index]}:lineTotalMinor`}
+              valueMinor={item.lineTotalMinor}
               disabled={!canEdit || saving}
-              onChange={(event) =>
-                setDraft({
-                  ...draft,
-                  lineItems: draft.lineItems.map((row, n) =>
-                    n === index
-                      ? {
-                          ...row,
-                          lineTotalMinor:
-                            event.target.value === ""
-                              ? null
-                              : Number(event.target.value),
-                        }
-                      : row,
-                  ),
-                })
+              onChangeMinor={(value) =>
+                updateLine(index, { lineTotalMinor: value })
+              }
+              onInvalidChange={(invalid) =>
+                markMoneyInvalid(
+                  `line:${lineIds[index]}:lineTotalMinor`,
+                  invalid,
+                )
               }
             />
           </label>
@@ -517,12 +594,7 @@ export function ReviewEditor({
             <button
               type="button"
               disabled={saving}
-              onClick={() =>
-                setDraft({
-                  ...draft,
-                  lineItems: draft.lineItems.filter((_, n) => n !== index),
-                })
-              }
+              onClick={() => removeLine(index)}
             >
               Quitar ítem
             </button>
@@ -531,26 +603,7 @@ export function ReviewEditor({
       ))}
       {canEdit && (
         <>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() =>
-              setDraft({
-                ...draft,
-                lineItems: [
-                  ...draft.lineItems,
-                  {
-                    description: "",
-                    quantity: null,
-                    unit: null,
-                    unitPriceMinor: null,
-                    discountMinor: null,
-                    lineTotalMinor: null,
-                  },
-                ],
-              })
-            }
-          >
+          <button type="button" disabled={saving} onClick={addLine}>
             Agregar ítem
           </button>
           <label>
@@ -564,7 +617,9 @@ export function ReviewEditor({
           </label>
           <button
             type="button"
-            disabled={saving || reason.trim().length < 3}
+            disabled={
+              saving || invalidMoney.size > 0 || reason.trim().length < 3
+            }
             onClick={() => void save()}
           >
             Guardar corrección
@@ -605,10 +660,14 @@ export function ReviewEditor({
                   )
                   .map((key) => (
                     <div key={key}>
-                      <dt>{labels[key]}</dt>
+                      <dt>
+                        {moneyKeys.some((moneyKey) => moneyKey === key)
+                          ? moneyLabel(labels[key], revision.after.currency)
+                          : labels[key]}
+                      </dt>
                       <dd>
-                        {JSON.stringify(revision.before[key])} →{" "}
-                        {JSON.stringify(revision.after[key])}
+                        {revisionValue(key, revision.before[key])} →{" "}
+                        {revisionValue(key, revision.after[key])}
                       </dd>
                     </div>
                   ))}
