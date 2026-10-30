@@ -1,7 +1,7 @@
 # ReceiptIntelligence Agent Rules
 
-This repository is in active development. Steps 1–3 have been implemented;
-Step 3 still has acceptance checks to complete. Do not start Step 4 or another
+This repository is in active development. Steps 1–4 have been implemented;
+Step 3 still has acceptance checks to complete. Do not start Step 5 or another
 roadmap step without explicit user authorization. A request to complete every
 slice in a named step authorizes those slices only; otherwise get approval for
 each next slice.

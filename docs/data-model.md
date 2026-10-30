@@ -2,8 +2,8 @@
 
 ## Core entities
 
-The sections below include both persisted Step 1–3 entities and planned
-Step 4–6 entities. The latter are identified where they appear.
+The sections below include persisted Step 1–4 entities and planned Step 5–6
+entities. The latter are identified where they appear.
 
 ### Workspace, user, membership, and session
 

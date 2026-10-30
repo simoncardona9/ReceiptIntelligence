@@ -1,9 +1,9 @@
 # Version 1 Vertical Slice Plan
 
 This is the planning breakdown for Steps 1–6. These slices are ordered and
-reviewable; approve each one individually and give it a focused implementation
-plan before work starts. Slices 1.1–3.4 are implemented; Slice 4.1 and later
-slices are not approved.
+reviewable; authorize a slice individually or a whole named step, then give
+each slice a focused implementation plan before work starts. Slices 1.1–4.4
+are implemented; Slice 5.1 and later slices are not approved.
 
 ## Step 1 — Secure foundation
 
@@ -460,6 +460,8 @@ available; unavailable evidence is explicit; viewing does not mutate data.
 
 **Dependencies/risk:** 2.4 and 3.4; usability and evidence trust.
 
+**Status:** Implemented on `step-4-review-approval` on 2026-10-30.
+
 ### Slice 4.2 — Corrections and revisions
 
 **Outcome:** Owners/editors can correct a proposal or approved record without
@@ -473,6 +475,8 @@ are preserved; approved corrections create a new revision; no raw payloads are
 logged. **Boundary:** validation/approval gates remain Slice 4.3–4.4.
 
 **Dependencies/risk:** 1.3 and 3.4; financial history risk.
+
+**Status:** Implemented on `step-4-review-approval` on 2026-10-30.
 
 ### Slice 4.3 — Validation and warnings
 
@@ -488,6 +492,8 @@ severity is deterministic and testable. **Boundary:** no approved-record write.
 
 **Dependencies/risk:** 3.4; highest financial correctness risk.
 
+**Status:** Implemented on `step-4-review-approval` on 2026-10-30.
+
 ### Slice 4.4 — Approval lifecycle
 
 **Outcome:** A valid proposal becomes an approved purchase or a permanent
@@ -501,6 +507,8 @@ reopened; auto-approval enforces all blockers; approval is idempotent and cannot
 create duplicate approved purchases. **Boundary:** no export.
 
 **Dependencies/risk:** 4.2–4.3; authoritative-state transition.
+
+**Status:** Implemented on `step-4-review-approval` on 2026-10-30.
 
 ## Step 5 — Categories, products, and approved records
 
@@ -639,6 +647,6 @@ remaining limitations are documented. **Boundary:** no new product features.
 ## Planning status
 
 - Total planned slices: **25**.
-- Approved slices: **12** (1.1–3.4).
-- Implemented slices: **12** (1.1–3.4).
-- Slice 4.1 and later slices remain drafts and are not authorized for implementation.
+- Approved slices: **16** (1.1–4.4).
+- Implemented slices: **16** (1.1–4.4).
+- Slice 5.1 and later slices remain drafts and are not authorized for implementation.

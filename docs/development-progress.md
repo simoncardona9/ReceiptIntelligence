@@ -1,5 +1,21 @@
 # Development Progress
 
+## Current state — Step 4 delivered; Step 3 acceptance limits remain
+
+Slices 4.1–4.4 were implemented and pushed on `step-4-review-approval` after
+explicit user authorization. They provide source-aligned review, versioned
+correction, warning gates, and audited approval/rejection for receipts and
+manual expenses. Step 5 is not authorized. The Step 3 OCR and worker acceptance
+limits below remain open; the synthetic checks do not measure private-corpus
+accuracy or real resource-failure behavior.
+
+### Step 4 final check
+
+- `pnpm check` passed: Prettier, ESLint, TypeScript, 52 TypeScript tests, 13 Python OCR tests, and Next.js production build.
+- `docker compose config --quiet` passed; PostgreSQL and web were healthy, and the worker was running. A repeated `docker compose exec -T web pnpm db:migrate` passed without new migrations.
+- Synthetic service checks passed in Compose: `pnpm smoke:auth`, `pnpm smoke:intake`, `pnpm smoke:extraction`, and `pnpm smoke:review`. With the worker stopped, `pnpm smoke:queue-state` passed; the worker was then restarted. The review smoke covers receipt and manual origin, invalid cases, authorization, retries, rejection, automatic approval, and approved revision updates.
+- Production browser checks across the slices covered image/PDF evidence highlights, mobile stacking, correction history, financial warning display, blocked auto selection, correction-triggered approval, and approved inbox status. These checks used invented source data only. No merge to `main` or later-step work was done.
+
 ## Step 4 — Slice 4.4 verification
 
 - Added owner/editor manual approval and permanent rejection, owner-only per-record auto approval, and an approved-purchase snapshot linked to one receipt or manual origin. The same financial validation runs for manual and automatic approval. A blocked auto-selected record stays correctable and approves in the correction transaction once valid. Approved corrections update the snapshot with a revision and audit; invalid approved corrections fail without partial state.
@@ -14,7 +30,7 @@
 
 - Added normalized receipt/manual review state and editor UI. The first read stays read-only at version 0; corrections preserve immutable proposal/manual originals, reject stale versions and changed base proposals, append before/after revisions with reason and actor, and write a separate content-free audit event atomically. Idempotency keys make retries safe.
 - Migration `0008_review_revisions.sql` was applied to the local synthetic database and a repeated `pnpm db:migrate` passed. The first Compose web start timed out connecting to PostgreSQL after the temporary production UI check; recreating the web service restored connectivity. The SQL itself passed a transaction-wrapped local PostgreSQL check. `pnpm smoke:review` passed for owner/editor/viewer rules, invalid money, missing/reused keys, stale version and proposal rejection, receipt and manual corrections, retained original values, audit count, and revision immutability. `pnpm check` passed with 49 TypeScript tests, 13 Python tests, and production build. A production browser pass saved a receipt category correction and displayed its before/after history.
-- Approved-record corrections will be exercised with Slice 4.4, when approved purchases exist.
+- Approved-record corrections were exercised with Slice 4.4 once approved purchases existed.
 
 ## Step 4 — Slice 4.1 delivered
 
@@ -22,17 +38,16 @@
 - The review screen presents extraction fields and the authorized source side by side, selects the relevant source and page from receipt-level field evidence, and marks normalized image or rendered PDF coordinates when present. Missing regions are explicit. PDF.js renders private PDF pages for overlays and page navigation. Existing image zoom, rotation, crop, source access, and mobile stacking remain available. Review is read-only.
 - `pnpm check` passed: formatting, lint, TypeScript, 46 TypeScript tests, 13 Python tests, and production build. The Compose production server rendered synthetic extracted PNG and two-page PDF sources beside field values; selecting the total displayed its source region on the correct image or PDF page. At 390px width, the layout stacked into one column without horizontal overflow. The local development server's HMR WebSocket did not connect through the browser tool, so the rendered check used `next start` and the normal development service was restored afterward.
 
-## Current state — Step 3 implementation delivered; acceptance checks remain
+## Step 3 delivery record — acceptance checks remain
 
-Slices 3.1–3.4 are implemented on `step-3-local-extraction`. Slice 4.1 and
-later slices are not approved. The completed checks below establish the local
-synthetic path, but do not close every Step 3 acceptance condition.
+Slices 3.1–3.4 were implemented on `step-3-local-extraction`. The completed
+checks below establish the local synthetic path, but do not close every Step 3
+acceptance condition.
 
 The repository is in active development. The current process supports either
 an explicitly authorized full-step run or user approval after each slice; both
 record checks and push slice commits to the step branch. See
-[development-process.md](development-process.md). This process update does not
-authorize Step 4.
+[development-process.md](development-process.md).
 
 - Added deterministic, provider-neutral proposal normalization for Spanish
   receipt fields and line items. Exact text, confidence, source page/region,
@@ -41,7 +56,8 @@ authorize Step 4.
 - Migration `0007_receipt_proposals.sql` adds immutable proposals. Successful
   extraction now commits evidence, proposal, job completion, receipt `review`
   status, and audit together. The scoped read API and source page show a
-  read-only proposal. Approval, correction, and export remain Step 4–6 work.
+  read-only proposal. At the Step 3 boundary, approval, correction, and export
+  were not yet present.
 - `pnpm check` passed with 46 TypeScript tests, 13 Python OCR tests, and the
   production build. `docker compose config --quiet` and repeated migrations
   passed. Final Compose web and worker images built and services became healthy.

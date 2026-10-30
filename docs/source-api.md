@@ -27,7 +27,7 @@ size returns a stable `400` or `413` error. Infrastructure errors return a
 generic `500 INTERNAL_ERROR`. Source metadata and audit history remain after
 binary removal. This API is the private file storage boundary. Receipt
 grouping and preview are implemented in Step 2; extraction is implemented in
-Step 3; approval remains Step 4 work.
+Step 3; approval is implemented in Step 4.
 
 Since Slice 2.1, an exact-content upload in the same workspace returns the
 existing live source rather than creating another source or upload audit event.
