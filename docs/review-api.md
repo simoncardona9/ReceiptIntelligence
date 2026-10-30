@@ -21,3 +21,23 @@ review without creating another revision. A changed payload for that key,
 stale version, or changed source proposal returns `409`. Viewers cannot write;
 unknown workspace and foreign records return safe errors. Raw receipt text is
 never logged by these endpoints.
+
+## Validation and warning policy
+
+The GET response includes `review.validation.state` (`ready` or `blocked`) and
+deterministic warnings. Each warning has a code, `financial` or `informational`
+severity, and independent `blocksApproval` and `blocksExport` flags. Missing
+merchant, total, or category; a conflicting or low-confidence mandatory OCR
+value; a tax-status contradiction; and arithmetic mismatch block approval.
+Low confidence means below 0.75 or no confidence value. A changed normalized
+value resolves its OCR conflict; alternatively, PATCH may include
+`confirmFields: ["merchant", "totalMinor"]` with a reason. Confirmations are
+versioned and audited even if the normalized value is unchanged.
+
+If subtotal, tax, and total are known and tax is not marked unknown, validation
+requires `subtotalMinor - (discountMinor ?? 0) + taxMinor === totalMinor` using
+integer arithmetic. Unknown tax, missing arithmetic inputs, and unavailable
+line items are visible informational warnings. Date, currency, and payment
+method may be missing for approval, while their absence blocks export. The
+unsplit expense warning permits approval without usable line items. Approval
+and export endpoints will enforce these flags in later slices.

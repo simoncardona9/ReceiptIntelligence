@@ -6,6 +6,26 @@ import type {
   ReviewOrigin,
   ReviewRecord,
 } from "@/server/review/review-service";
+import type { MandatoryField } from "@/server/review/validation";
+
+const warningLabels: Record<string, string> = {
+  MISSING_MERCHANT: "Falta comercio",
+  MISSING_TOTAL: "Falta total",
+  MISSING_CATEGORY: "Falta categoría",
+  CONFLICT_MERCHANT: "Comercio en conflicto",
+  CONFLICT_TOTALMINOR: "Total en conflicto",
+  LOW_CONFIDENCE_MERCHANT: "Comercio con confianza baja",
+  LOW_CONFIDENCE_TOTALMINOR: "Total con confianza baja",
+  TAX_STATUS_CONFLICT: "IVA marcado como desconocido y con valor",
+  AMOUNT_MISMATCH: "Subtotal menos descuento más IVA no coincide con total",
+  TAX_UNKNOWN: "IVA desconocido",
+  ARITHMETIC_INCOMPLETE: "No hay datos suficientes para conciliar",
+  MISSING_EXPORT_DATE: "Falta fecha para exportar",
+  MISSING_EXPORT_CURRENCY: "Falta moneda para exportar",
+  MISSING_EXPORT_PAYMENT_METHOD: "Falta medio de pago para exportar",
+  UNSPLIT_EXPENSE: "Gasto sin ítems detallados",
+  LINE_ITEMS_INCOMPLETE: "Ítems incompletos",
+};
 
 const labels: Record<keyof ReviewFields, string> = {
   merchant: "Comercio",
@@ -13,13 +33,19 @@ const labels: Record<keyof ReviewFields, string> = {
   totalMinor: "Total (centésimos)",
   currency: "Moneda",
   subtotalMinor: "Subtotal (centésimos)",
+  discountMinor: "Descuento (centésimos)",
   taxMinor: "IVA (centésimos)",
   taxUnknown: "IVA desconocido",
   paymentMethod: "Medio de pago",
   categoryName: "Categoría provisional",
   lineItems: "Ítems",
 };
-const moneyKeys = ["totalMinor", "subtotalMinor", "taxMinor"] as const;
+const moneyKeys = [
+  "totalMinor",
+  "subtotalMinor",
+  "discountMinor",
+  "taxMinor",
+] as const;
 const textKeys = ["merchant", "date", "paymentMethod", "categoryName"] as const;
 
 export function ReviewEditor({
@@ -38,6 +64,7 @@ export function ReviewEditor({
   const [reason, setReason] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [confirmFields, setConfirmFields] = useState<MandatoryField[]>([]);
   function updateLine(
     index: number,
     patch: Partial<ReviewFields["lineItems"][number]>,
@@ -91,6 +118,7 @@ export function ReviewEditor({
           expectedBaseProposalId: review.baseProposalId,
           reason,
           fields: draft,
+          confirmFields,
         }),
       });
       if (!response.ok) {
@@ -107,6 +135,7 @@ export function ReviewEditor({
       setReview(body.review);
       setDraft(body.review.current);
       setReason("");
+      setConfirmFields([]);
       setMessage("Corrección guardada.");
     } catch {
       setMessage("No se pudo guardar la corrección.");
@@ -128,6 +157,53 @@ export function ReviewEditor({
         Versión {review.version}. Los valores originales y cada cambio quedan
         disponibles en el historial.
       </p>
+      <h3>Validación</h3>
+      <p role="status">
+        {review.validation.state === "blocked"
+          ? "Aprobación bloqueada"
+          : "Lista para aprobar"}
+      </p>
+      <ul>
+        {review.validation.warnings.map((warning) => (
+          <li key={warning.code}>
+            {warningLabels[warning.code] ?? warning.code} ·{" "}
+            {warning.severity === "financial" ? "Financiera" : "Informativa"}
+            {warning.blocksApproval ? " · Bloquea aprobación" : ""}
+            {warning.blocksExport ? " · Bloquea exportación" : ""}
+          </li>
+        ))}
+      </ul>
+      {editable &&
+        review.validation.warnings.some(
+          (warning) =>
+            warning.code.startsWith("CONFLICT_") ||
+            warning.code.startsWith("LOW_CONFIDENCE_"),
+        ) && (
+          <fieldset>
+            <legend>Confirmar valores detectados</legend>
+            {(["merchant", "totalMinor"] as MandatoryField[]).map((field) => (
+              <label key={field}>
+                <input
+                  type="checkbox"
+                  disabled={review.confirmedFields.includes(field) || saving}
+                  checked={
+                    review.confirmedFields.includes(field) ||
+                    confirmFields.includes(field)
+                  }
+                  onChange={(event) =>
+                    setConfirmFields(
+                      event.target.checked
+                        ? [...confirmFields, field]
+                        : confirmFields.filter((value) => value !== field),
+                    )
+                  }
+                />{" "}
+                Confirmo {field === "merchant" ? "comercio" : "total"} con el
+                valor mostrado
+              </label>
+            ))}
+          </fieldset>
+        )}
       <div className="review-editor-fields">
         {textKeys.map((key) => (
           <label key={key}>
@@ -379,6 +455,19 @@ export function ReviewEditor({
                 Versión {revision.version} · {revision.createdAt} · Autor{" "}
                 {revision.actorUserId} · Motivo: {revision.reason}
               </p>
+              {revision.afterConfirmedFields.filter(
+                (field) => !revision.beforeConfirmedFields.includes(field),
+              ).length > 0 && (
+                <p>
+                  Confirmado:{" "}
+                  {revision.afterConfirmedFields
+                    .filter(
+                      (field) =>
+                        !revision.beforeConfirmedFields.includes(field),
+                    )
+                    .join(", ")}
+                </p>
+              )}
               <dl>
                 {(Object.keys(labels) as (keyof ReviewFields)[])
                   .filter(

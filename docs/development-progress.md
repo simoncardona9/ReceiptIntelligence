@@ -1,5 +1,10 @@
 # Development Progress
 
+## Step 4 — Slice 4.3 verification
+
+- Added deterministic server-side warning evaluation for mandatory merchant, total, and category; OCR confidence/conflicts; tax unknown or contradictory status; exact integer arithmetic; missing export fields; and unavailable line items. Warnings expose financial/informational severity and separate approval/export blockers. The review screen displays them and reasoned confirmation of a mandatory OCR value creates an immutable revision and audit event.
+- Migration `0009_review_confirmation.sql` applied and repeated without changes. `pnpm smoke:review` passed with blocked/ready states, informational export blockers, reasoned confirmation, receipt/manual corrections, authorization, retry, and audit assertions. Unit tests exercise mismatched arithmetic, tax unknown, missing mandatory fields, and conflicting/low-confidence OCR. `pnpm check` passed with 52 TypeScript tests, 13 Python tests, and production build. A production browser pass showed the informative export warning, then a synthetic discount correction produced the expected financial approval blocker.
+
 ## Step 4 — Slice 4.2 verification
 
 - Added normalized receipt/manual review state and editor UI. The first read stays read-only at version 0; corrections preserve immutable proposal/manual originals, reject stale versions and changed base proposals, append before/after revisions with reason and actor, and write a separate content-free audit event atomically. Idempotency keys make retries safe.

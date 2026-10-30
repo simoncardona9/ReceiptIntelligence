@@ -8,12 +8,23 @@ import {
   fieldsFromProposal,
   type ReviewFields,
 } from "./fields";
+import {
+  evaluateReview,
+  type MandatoryField,
+  type ReviewValidation,
+} from "./validation";
+
+function withDefaults(fields: ReviewFields): ReviewFields {
+  return { ...fields, discountMinor: fields.discountMinor ?? null };
+}
 
 export type ReviewOrigin = "receipt" | "manual";
 export type ReviewRevision = {
   version: number;
   before: ReviewFields;
   after: ReviewFields;
+  beforeConfirmedFields: MandatoryField[];
+  afterConfirmedFields: MandatoryField[];
   reason: string;
   actorUserId: string;
   createdAt: string;
@@ -26,6 +37,8 @@ export type ReviewRecord = {
   baseProposalId: string | null;
   original: ReviewFields;
   current: ReviewFields;
+  confirmedFields: MandatoryField[];
+  validation: ReviewValidation;
   revisions: ReviewRevision[];
 };
 type StoredRow = {
@@ -33,6 +46,7 @@ type StoredRow = {
   fields: ReviewFields;
   version: number;
   baseProposalId: string | null;
+  confirmedFields: MandatoryField[];
 };
 
 export class ReviewService {
@@ -58,7 +72,7 @@ export class ReviewService {
     originId: string,
   ): Promise<StoredRow | null> {
     const result = await client.query<StoredRow>(
-      `SELECT id, fields, version, base_proposal_id AS "baseProposalId" FROM review_records
+      `SELECT id, fields, version, base_proposal_id AS "baseProposalId", confirmed_fields AS "confirmedFields" FROM review_records
        WHERE workspace_id = $1 AND origin = $2 AND origin_id = $3`,
       [workspaceId, origin, originId],
     );
@@ -71,7 +85,11 @@ export class ReviewService {
     origin: ReviewOrigin,
     originId: string,
     proposalId: string | null,
-  ): Promise<{ fields: ReviewFields; proposalId: string | null }> {
+  ): Promise<{
+    fields: ReviewFields;
+    proposalId: string | null;
+    proposal: Proposal | null;
+  }> {
     if (origin === "manual") {
       const result = await client.query<{
         merchant: string;
@@ -119,6 +137,7 @@ export class ReviewService {
           })),
         }),
         proposalId: null,
+        proposal: null,
       };
     }
     const receipt = await client.query<{ id: string }>(
@@ -139,6 +158,7 @@ export class ReviewService {
     return {
       fields: fieldsFromProposal(result.rows[0].proposal),
       proposalId: result.rows[0].id,
+      proposal: result.rows[0].proposal,
     };
   }
 
@@ -161,16 +181,21 @@ export class ReviewService {
           version: number;
           before: ReviewFields;
           after: ReviewFields;
+          beforeConfirmedFields: MandatoryField[];
+          afterConfirmedFields: MandatoryField[];
           reason: string;
           actorUserId: string;
           createdAt: Date;
         }>(
-          `SELECT version, before_fields AS before, after_fields AS after, reason,
+          `SELECT version, before_fields AS before, after_fields AS after,
+       before_confirmed_fields AS "beforeConfirmedFields", after_confirmed_fields AS "afterConfirmedFields", reason,
        actor_user_id AS "actorUserId", created_at AS "createdAt" FROM review_revisions
        WHERE workspace_id = $1 AND review_id = $2 ORDER BY version`,
           [workspaceId, stored.id],
         )
       : null;
+    const current = withDefaults(stored?.fields ?? base.fields);
+    const confirmedFields = stored?.confirmedFields ?? [];
     return {
       id: stored?.id ?? null,
       origin,
@@ -178,10 +203,19 @@ export class ReviewService {
       version: stored?.version ?? 0,
       baseProposalId: base.proposalId,
       original: base.fields,
-      current: stored?.fields ?? base.fields,
+      current,
+      confirmedFields,
+      validation: evaluateReview({
+        current,
+        original: base.fields,
+        proposal: base.proposal,
+        confirmedFields,
+      }),
       revisions:
         revisions?.rows.map((row) => ({
           ...row,
+          before: withDefaults(row.before),
+          after: withDefaults(row.after),
           createdAt: row.createdAt.toISOString(),
         })) ?? [],
     };
@@ -212,6 +246,7 @@ export class ReviewService {
     idempotencyKey: string;
     reason: string;
     fields: ReviewFields;
+    confirmFields?: MandatoryField[];
   }): Promise<ReviewRecord> {
     const client = await this.pool.connect();
     const hash = createHash("sha256")
@@ -221,6 +256,7 @@ export class ReviewService {
           expectedBaseProposalId: input.expectedBaseProposalId,
           reason: input.reason,
           fields: input.fields,
+          confirmFields: input.confirmFields ?? [],
         }),
       )
       .digest("hex");
@@ -284,8 +320,15 @@ export class ReviewService {
           409,
           "Review changed. Reload before saving.",
         );
-      const before = stored?.fields ?? base.fields;
-      if (JSON.stringify(before) === JSON.stringify(input.fields))
+      const before = withDefaults(stored?.fields ?? base.fields);
+      const beforeConfirmed = stored?.confirmedFields ?? [];
+      const afterConfirmed = [
+        ...new Set([...beforeConfirmed, ...(input.confirmFields ?? [])]),
+      ].sort() as MandatoryField[];
+      if (
+        JSON.stringify(before) === JSON.stringify(input.fields) &&
+        JSON.stringify(beforeConfirmed) === JSON.stringify(afterConfirmed)
+      )
         throw new DomainError(
           "REVIEW_UNCHANGED",
           400,
@@ -294,12 +337,12 @@ export class ReviewService {
       const reviewId = stored?.id ?? randomUUID();
       if (stored) {
         await client.query(
-          "UPDATE review_records SET fields = $1, version = version + 1, updated_at = now() WHERE id = $2 AND workspace_id = $3",
-          [input.fields, reviewId, input.workspaceId],
+          "UPDATE review_records SET fields = $1, confirmed_fields = $2, version = version + 1, updated_at = now() WHERE id = $3 AND workspace_id = $4",
+          [input.fields, afterConfirmed, reviewId, input.workspaceId],
         );
       } else {
         await client.query(
-          `INSERT INTO review_records (id, workspace_id, origin, origin_id, base_proposal_id, fields, version) VALUES ($1,$2,$3,$4,$5,$6,1)`,
+          `INSERT INTO review_records (id, workspace_id, origin, origin_id, base_proposal_id, fields, confirmed_fields, version) VALUES ($1,$2,$3,$4,$5,$6,$7,1)`,
           [
             reviewId,
             input.workspaceId,
@@ -307,11 +350,12 @@ export class ReviewService {
             input.originId,
             base.proposalId,
             input.fields,
+            afterConfirmed,
           ],
         );
       }
       await client.query(
-        `INSERT INTO review_revisions (id, review_id, workspace_id, version, before_fields, after_fields, reason, actor_user_id, idempotency_key, payload_hash) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        `INSERT INTO review_revisions (id, review_id, workspace_id, version, before_fields, after_fields, before_confirmed_fields, after_confirmed_fields, reason, actor_user_id, idempotency_key, payload_hash) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
         [
           randomUUID(),
           reviewId,
@@ -319,6 +363,8 @@ export class ReviewService {
           version + 1,
           before,
           input.fields,
+          beforeConfirmed,
+          afterConfirmed,
           input.reason,
           input.actorUserId,
           input.idempotencyKey,

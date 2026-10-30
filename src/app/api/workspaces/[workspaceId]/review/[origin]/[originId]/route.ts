@@ -26,6 +26,10 @@ const correctionSchema = z
     expectedBaseProposalId: z.uuid().nullable(),
     reason: z.string().trim().min(3).max(500),
     fields: reviewFieldsSchema,
+    confirmFields: z
+      .array(z.enum(["merchant", "totalMinor"]))
+      .max(2)
+      .optional(),
   })
   .strict();
 type Context = {
@@ -68,6 +72,7 @@ export async function PATCH(request: Request, context: Context) {
       expectedBaseProposalId: body.expectedBaseProposalId,
       reason: body.reason,
       fields: body.fields,
+      confirmFields: body.confirmFields,
     });
     return Response.json(
       { review },

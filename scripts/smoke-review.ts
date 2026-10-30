@@ -113,6 +113,13 @@ async function run() {
   const review = first.data.review as ReviewRecord;
   if (review.version !== 0 || review.original.merchant !== "Synthetic Market")
     throw new Error("incorrect initial review");
+  if (
+    review.validation.state !== "blocked" ||
+    !review.validation.warnings.some(
+      (warning) => warning.code === "MISSING_CATEGORY",
+    )
+  )
+    throw new Error("missing category did not block approval");
   const corrected = {
     ...review.current,
     merchant: "Synthetic Market Corrected",
@@ -198,6 +205,16 @@ async function run() {
     final.revisions[0].after.merchant !== "Synthetic Market Corrected"
   )
     throw new Error("revision history wrong");
+  if (
+    final.validation.state !== "ready" ||
+    !final.validation.warnings.some(
+      (warning) =>
+        warning.code === "MISSING_EXPORT_PAYMENT_METHOD" &&
+        warning.blocksExport &&
+        !warning.blocksApproval,
+    )
+  )
+    throw new Error("warning classification wrong");
   const bytes = Buffer.from(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC",
     "base64",
@@ -260,6 +277,7 @@ async function run() {
     ...receiptReview.current,
     merchant: "Synthetic OCR Correction",
     totalMinor: 1000,
+    categoryName: "Synthetic Category",
   };
   expected(
     (
@@ -299,13 +317,35 @@ async function run() {
       receiptReview.original.merchant
   )
     throw new Error("receipt proposal provenance lost");
+  if (updatedReceipt.validation.state !== "ready")
+    throw new Error("corrected receipt still blocked");
+  const confirmed = await api(
+    receiptPath,
+    "PATCH",
+    editor,
+    {
+      expectedVersion: 1,
+      expectedBaseProposalId: receiptReview.baseProposalId,
+      reason: "Confirmed synthetic merchant",
+      fields: receiptFields,
+      confirmFields: ["merchant"],
+    },
+    randomUUID(),
+  );
+  expected(confirmed.status, 200, "reasoned confirmation");
+  if (
+    !(confirmed.data.review as ReviewRecord).confirmedFields.includes(
+      "merchant",
+    )
+  )
+    throw new Error("confirmation missing from history");
   const pool = new Pool({ connectionString: loadAppConfig().databaseUrl });
   try {
     const count = await pool.query<{ n: string }>(
       "SELECT count(*)::text AS n FROM review_audit_events WHERE workspace_id = $1",
       [workspaceId],
     );
-    if (count.rows[0].n !== "2") throw new Error("audit count wrong");
+    if (count.rows[0].n !== "3") throw new Error("audit count wrong");
     try {
       await pool.query("DELETE FROM review_revisions WHERE workspace_id = $1", [
         workspaceId,

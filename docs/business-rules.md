@@ -15,6 +15,10 @@
 - Preserve the receipt currency; never combine currencies implicitly.
 - Tax and subtotal must reconcile to the total when all required values are present.
 - A mismatch is a review warning or blocking error according to configured severity.
+- When subtotal, tax, and total are known, their integer minor-unit values must
+  satisfy subtotal minus discount (zero if absent) plus tax equals total.
+- Unknown tax is explicit and cannot coexist with a tax amount. It warns but
+  does not by itself block approval.
 - Receipt date is distinct from upload date and processing date.
 
 ## Confidence and evidence
