@@ -20,6 +20,7 @@
     "smoke:intake": "node --import=tsx scripts/smoke-intake.ts",
     "smoke:extraction": "node --import=tsx scripts/smoke-extraction.ts",
     "smoke:queue-state": "node --import=tsx scripts/smoke-queue-state.ts",
+    "smoke:review": "node --import=tsx scripts/smoke-review.ts",
     "lint": "eslint .",
     "format": "prettier --write \"src/**/*.{ts,tsx}\" \"scripts/**/*.ts\" \"fixtures/**/*.json\" \"*.{json,mjs,mts,yml}\" compose.yaml README.md",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"scripts/**/*.ts\" \"fixtures/**/*.json\" \"*.{json,mjs,mts,yml}\" compose.yaml README.md",
@@ -31,6 +32,7 @@
   "dependencies": {
     "dotenv": "16.6.1",
     "next": "16.4.3",
+    "pdfjs-dist": "^6.4.299",
     "pg": "8.23.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",

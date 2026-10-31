@@ -5,6 +5,10 @@ import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { Proposal } from "@/server/extraction/normalization";
+import type { Evidence } from "@/server/extraction/normalization";
+import { pesosDisplay } from "@/app/money";
+import { PdfPage } from "./pdf-page";
+import { ReviewEditor } from "../../../review-editor";
 
 type Receipt = {
   id: string;
@@ -33,10 +37,7 @@ const warningLabels: Record<string, string> = {
 };
 function displayValue(name: string, value: string | number): string {
   return name.endsWith("Minor") && typeof value === "number"
-    ? new Intl.NumberFormat("es-UY", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(value / 100)
+    ? pesosDisplay(value)
     : String(value);
 }
 
@@ -51,12 +52,16 @@ export default function SourceReviewPage() {
   const [url, setUrl] = useState("");
   const [type, setType] = useState("");
   const [page, setPage] = useState(1);
+  const [pageCount, setPageCount] = useState(1);
   const [zoom, setZoom] = useState(100);
   const [rotation, setRotation] = useState(0);
   const [crop, setCrop] = useState(0);
   const [error, setError] = useState("");
   const [role, setRole] = useState<"owner" | "editor" | "viewer">("viewer");
   const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [selectedEvidence, setSelectedEvidence] = useState<Evidence | null>(
+    null,
+  );
 
   const loadReceipt = useCallback(async () => {
     try {
@@ -101,6 +106,12 @@ export default function SourceReviewPage() {
   }, [loadReceipt]);
 
   const sourceId = receipt?.sourceIds[index];
+  function showEvidence(evidence: Evidence) {
+    const sourceIndex = receipt?.sourceIds.indexOf(evidence.sourceId) ?? -1;
+    setSelectedEvidence(evidence);
+    if (sourceIndex >= 0) setIndex(sourceIndex);
+    setPage(evidence.page + 1);
+  }
   async function submitExtraction() {
     try {
       const response = await fetch(
@@ -131,7 +142,12 @@ export default function SourceReviewPage() {
           objectUrl = URL.createObjectURL(blob);
           setType(blob.type);
           setUrl(objectUrl);
-          setPage(1);
+          setPage(
+            selectedEvidence?.sourceId === sourceId
+              ? selectedEvidence.page + 1
+              : 1,
+          );
+          setPageCount(1);
           setZoom(100);
           setRotation(0);
           setCrop(0);
@@ -146,15 +162,13 @@ export default function SourceReviewPage() {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
       setUrl("");
     };
-  }, [workspaceId, sourceId]);
+  }, [workspaceId, sourceId, selectedEvidence]);
 
   return (
-    <main>
+    <main className="review-main">
       <Link href={`/workspaces/${workspaceId}/inbox`}>← Bandeja</Link>
       <h1>Revisar fuente</h1>
-      <p>
-        Recibo {receiptId} · {receipt?.status ?? "Cargando…"}
-      </p>
+      <p>Recibo {receiptId}</p>
       {error && (
         <p role="alert" className="error">
           {error}
@@ -162,252 +176,327 @@ export default function SourceReviewPage() {
       )}
       {receipt && (
         <>
-          {proposal && (
-            <section className="workspace-card">
-              <h2>Propuesta de extracción</h2>
-              <p>
-                Estos datos requieren revisión; todavía no son un gasto
-                aprobado.
-              </p>
-              <dl>
-                {Object.entries(proposal.fields).map(([name, value]) => (
-                  <div key={name}>
-                    <dt>{fieldLabels[name]}</dt>
-                    <dd>
-                      {value ? (
-                        <>
-                          {displayValue(name, value.normalized)} · Texto:{" "}
-                          {value.exact} · Confianza:{" "}
-                          {value.confidence === null
-                            ? "sin dato"
-                            : `${Math.round(value.confidence * 100)}%`}{" "}
-                          · Fuente {value.evidence.sourceId}, página{" "}
-                          {value.evidence.page + 1}
-                        </>
-                      ) : (
-                        "Sin dato"
-                      )}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-              <h3>Ítems detectados</h3>
-              {proposal.lineItems.length ? (
-                <ul>
-                  {proposal.lineItems.map((item, itemIndex) => (
-                    <li
-                      key={`${item.description.evidence.regionId}-${itemIndex}`}
-                    >
-                      {item.description.exact} ·{" "}
-                      {item.quantity?.normalized ?? "cantidad sin dato"}{" "}
-                      {item.unit ?? ""} · Total{" "}
-                      {item.lineTotalMinor
-                        ? displayValue(
-                            "lineTotalMinor",
-                            item.lineTotalMinor.normalized,
-                          )
-                        : "sin dato"}
-                      {item.unitPriceMinor && (
-                        <>
-                          {" "}
-                          · Precio unitario{" "}
-                          {displayValue(
-                            "unitPriceMinor",
-                            item.unitPriceMinor.normalized,
-                          )}
-                        </>
-                      )}
-                      {item.discountMinor && (
-                        <>
-                          {" "}
-                          · Descuento{" "}
-                          {displayValue(
-                            "discountMinor",
-                            item.discountMinor.normalized,
-                          )}
-                        </>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p>Sin ítems utilizables.</p>
-              )}
-              {proposal.conflicts.length > 0 && (
-                <div role="alert">
-                  <h3>Valores en conflicto</h3>
-                  {proposal.conflicts.map((conflict) => (
-                    <div key={conflict.field}>
-                      <p>
-                        {fieldLabels[conflict.field]}: revisar las alternativas
-                        antes de aprobar.
-                      </p>
-                      <ul>
-                        {conflict.alternatives.map((alternative, index) => (
-                          <li key={`${alternative.evidence.regionId}-${index}`}>
-                            {displayValue(
-                              conflict.field,
-                              alternative.normalized,
-                            )}{" "}
-                            · Texto: {alternative.exact} · Fuente{" "}
-                            {alternative.evidence.sourceId}, página{" "}
-                            {alternative.evidence.page + 1}
-                          </li>
-                        ))}
-                      </ul>
+          <div className="review-layout">
+            {proposal && (
+              <section className="workspace-card">
+                <h2>Propuesta de extracción</h2>
+                <p>
+                  Estos datos requieren revisión; todavía no son un gasto
+                  aprobado.
+                </p>
+                <dl className="proposal-fields">
+                  {Object.entries(proposal.fields).map(([name, value]) => (
+                    <div className="proposal-field" key={name}>
+                      <dt>{fieldLabels[name]}</dt>
+                      <dd>
+                        {value ? (
+                          <>
+                            <span className="proposal-value">
+                              {displayValue(name, value.normalized)}
+                            </span>
+                            <span className="proposal-meta">
+                              Texto original: {value.exact} · Confianza:{" "}
+                              {value.confidence === null
+                                ? "sin dato"
+                                : `${Math.round(value.confidence * 100)}%`}
+                            </span>
+                            <span className="proposal-source">
+                              <button
+                                type="button"
+                                onClick={() => showEvidence(value.evidence)}
+                              >
+                                Ver fuente{" "}
+                                {receipt.sourceIds.indexOf(
+                                  value.evidence.sourceId,
+                                ) + 1}
+                                , página {value.evidence.page + 1}
+                              </button>
+                              {value.evidence.box === null &&
+                                " · Región no disponible"}
+                            </span>
+                          </>
+                        ) : (
+                          "Sin dato"
+                        )}
+                      </dd>
                     </div>
                   ))}
-                </div>
+                </dl>
+                <h3>Ítems detectados</h3>
+                {proposal.lineItems.length ? (
+                  <ul>
+                    {proposal.lineItems.map((item, itemIndex) => (
+                      <li
+                        key={`${item.description.evidence.regionId}-${itemIndex}`}
+                      >
+                        {item.description.exact} ·{" "}
+                        {item.quantity?.normalized ?? "cantidad sin dato"}{" "}
+                        {item.unit ?? ""} · Total{" "}
+                        {item.lineTotalMinor
+                          ? displayValue(
+                              "lineTotalMinor",
+                              item.lineTotalMinor.normalized,
+                            )
+                          : "sin dato"}
+                        {item.unitPriceMinor && (
+                          <>
+                            {" "}
+                            · Precio unitario{" "}
+                            {displayValue(
+                              "unitPriceMinor",
+                              item.unitPriceMinor.normalized,
+                            )}
+                          </>
+                        )}
+                        {item.discountMinor && (
+                          <>
+                            {" "}
+                            · Descuento{" "}
+                            {displayValue(
+                              "discountMinor",
+                              item.discountMinor.normalized,
+                            )}
+                          </>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>Sin ítems utilizables.</p>
+                )}
+                {proposal.conflicts.length > 0 && (
+                  <div role="alert">
+                    <h3>Valores en conflicto</h3>
+                    {proposal.conflicts.map((conflict) => (
+                      <div key={conflict.field}>
+                        <p>
+                          {fieldLabels[conflict.field]}: revisar las
+                          alternativas antes de aprobar.
+                        </p>
+                        <ul>
+                          {conflict.alternatives.map((alternative, index) => (
+                            <li
+                              key={`${alternative.evidence.regionId}-${index}`}
+                            >
+                              {displayValue(
+                                conflict.field,
+                                alternative.normalized,
+                              )}{" "}
+                              · Texto: {alternative.exact} · Fuente{" "}
+                              {alternative.evidence.sourceId}, página{" "}
+                              {alternative.evidence.page + 1}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {proposal.warnings.length > 0 && (
+                  <p>
+                    Datos pendientes:{" "}
+                    {proposal.warnings
+                      .map((code) => warningLabels[code] ?? "dato incompleto")
+                      .join(", ")}
+                    .
+                  </p>
+                )}
+              </section>
+            )}
+            <section
+              className="workspace-card source-viewer"
+              aria-label="Fuente del recibo"
+            >
+              <p>
+                Archivo {index + 1} de {receipt.sourceIds.length}
+              </p>
+              <div className="source-viewer-links">
+                <Link href={`/workspaces/${workspaceId}/extraction`}>
+                  Ver cola de extracción
+                </Link>
+                {role !== "viewer" &&
+                  ["staged", "failed", "extracted"].includes(
+                    receipt.status,
+                  ) && (
+                    <button
+                      type="button"
+                      onClick={() => void submitExtraction()}
+                    >
+                      Procesar recibo
+                    </button>
+                  )}
+                <Link
+                  href={`/workspaces/${workspaceId}/receipts/${receiptId}/duplicates`}
+                >
+                  Revisar posibles duplicados
+                </Link>
+              </div>
+              <div className="source-file-nav">
+                <button
+                  type="button"
+                  disabled={index === 0}
+                  onClick={() => setIndex(index - 1)}
+                >
+                  Anterior archivo
+                </button>
+                <button
+                  type="button"
+                  disabled={index >= receipt.sourceIds.length - 1}
+                  onClick={() => setIndex(index + 1)}
+                >
+                  Siguiente archivo
+                </button>
+              </div>
+              {type.startsWith("image/") && (
+                <>
+                  <div className="source-control-grid">
+                    <label>
+                      Zoom {zoom}%
+                      <input
+                        type="range"
+                        min="50"
+                        max="300"
+                        value={zoom}
+                        onChange={(event) =>
+                          setZoom(Number(event.target.value))
+                        }
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setRotation((value) => (value + 90) % 360)}
+                    >
+                      Rotar 90°
+                    </button>
+                    <label>
+                      Recorte visual {crop}%
+                      <input
+                        type="range"
+                        min="0"
+                        max="40"
+                        value={crop}
+                        onChange={(event) =>
+                          setCrop(Number(event.target.value))
+                        }
+                      />
+                    </label>
+                  </div>
+                  <div
+                    style={{
+                      overflow: "auto",
+                      minHeight: 300,
+                      maxHeight: 650,
+                      border: "1px solid #d8e0da",
+                    }}
+                  >
+                    {url && (
+                      <div
+                        style={{
+                          position: "relative",
+                          width: `${zoom}%`,
+                          minWidth: 1,
+                          transform: `rotate(${rotation}deg)`,
+                          clipPath: `inset(${crop}%)`,
+                        }}
+                      >
+                        <Image
+                          src={url}
+                          alt={`Fuente ${index + 1} del recibo`}
+                          unoptimized
+                          width={1000}
+                          height={1000}
+                          style={{
+                            display: "block",
+                            width: "100%",
+                            height: "auto",
+                            maxWidth: "none",
+                          }}
+                        />
+                        {selectedEvidence &&
+                          selectedEvidence.sourceId === sourceId &&
+                          selectedEvidence.box &&
+                          selectedEvidence.page === 0 && (
+                            <span
+                              className="evidence-highlight"
+                              aria-label="Región de origen"
+                              style={{
+                                left: `${selectedEvidence.box[0] * 100}%`,
+                                top: `${selectedEvidence.box[1] * 100}%`,
+                                width: `${(selectedEvidence.box[2] - selectedEvidence.box[0]) * 100}%`,
+                                height: `${(selectedEvidence.box[3] - selectedEvidence.box[1]) * 100}%`,
+                              }}
+                            />
+                          )}
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
-              {proposal.warnings.length > 0 && (
+              {type === "application/pdf" && (
+                <>
+                  <div className="source-control-grid">
+                    <button
+                      type="button"
+                      disabled={page <= 1}
+                      onClick={() => setPage((value) => value - 1)}
+                    >
+                      Página anterior
+                    </button>
+                    <label>
+                      Página
+                      <input
+                        type="number"
+                        min="1"
+                        max={pageCount}
+                        value={page}
+                        onChange={(event) =>
+                          setPage(
+                            Math.min(
+                              pageCount,
+                              Math.max(1, Number(event.target.value) || 1),
+                            ),
+                          )
+                        }
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      disabled={page >= pageCount}
+                      onClick={() => setPage((value) => value + 1)}
+                    >
+                      Página siguiente
+                    </button>
+                  </div>
+                  {url && (
+                    <PdfPage
+                      url={url}
+                      page={page}
+                      evidence={
+                        selectedEvidence?.sourceId === sourceId
+                          ? selectedEvidence
+                          : null
+                      }
+                      zoom={zoom}
+                      onPageCount={setPageCount}
+                    />
+                  )}
+                </>
+              )}
+              {url && (
                 <p>
-                  Datos pendientes:{" "}
-                  {proposal.warnings
-                    .map((code) => warningLabels[code] ?? "dato incompleto")
-                    .join(", ")}
-                  .
+                  <a href={url} download={`recibo-${receiptId}-${index + 1}`}>
+                    Descargar archivo
+                  </a>
                 </p>
               )}
             </section>
-          )}
-          <p>
-            Archivo {index + 1} de {receipt.sourceIds.length}
-          </p>
-          <div className="actions">
-            <Link href={`/workspaces/${workspaceId}/extraction`}>
-              Ver cola de extracción
-            </Link>
-            {role !== "viewer" &&
-              ["staged", "failed", "extracted"].includes(receipt.status) && (
-                <button type="button" onClick={() => void submitExtraction()}>
-                  Procesar recibo
-                </button>
-              )}
-            <button
-              type="button"
-              disabled={index === 0}
-              onClick={() => setIndex(index - 1)}
-            >
-              Anterior archivo
-            </button>
-            <button
-              type="button"
-              disabled={index >= receipt.sourceIds.length - 1}
-              onClick={() => setIndex(index + 1)}
-            >
-              Siguiente archivo
-            </button>
-            <Link
-              href={`/workspaces/${workspaceId}/receipts/${receiptId}/duplicates`}
-            >
-              Revisar posibles duplicados
-            </Link>
           </div>
-          {type.startsWith("image/") && (
-            <>
-              <div className="actions">
-                <label>
-                  Zoom {zoom}%
-                  <input
-                    type="range"
-                    min="50"
-                    max="300"
-                    value={zoom}
-                    onChange={(event) => setZoom(Number(event.target.value))}
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setRotation((value) => (value + 90) % 360)}
-                >
-                  Rotar 90°
-                </button>
-                <label>
-                  Recorte visual {crop}%
-                  <input
-                    type="range"
-                    min="0"
-                    max="40"
-                    value={crop}
-                    onChange={(event) => setCrop(Number(event.target.value))}
-                  />
-                </label>
-              </div>
-              <div
-                style={{
-                  overflow: "auto",
-                  minHeight: 300,
-                  maxHeight: 650,
-                  border: "1px solid #d8e0da",
-                }}
-              >
-                {url && (
-                  <Image
-                    src={url}
-                    alt={`Fuente ${index + 1} del recibo`}
-                    unoptimized
-                    width={1000}
-                    height={1000}
-                    style={{
-                      display: "block",
-                      width: `${zoom}%`,
-                      height: "auto",
-                      maxWidth: "none",
-                      transform: `rotate(${rotation}deg)`,
-                      clipPath: `inset(${crop}%)`,
-                    }}
-                  />
-                )}
-              </div>
-            </>
-          )}
-          {type === "application/pdf" && (
-            <>
-              <div className="actions">
-                <button
-                  type="button"
-                  disabled={page <= 1}
-                  onClick={() => setPage((value) => value - 1)}
-                >
-                  Página anterior
-                </button>
-                <label>
-                  Página
-                  <input
-                    type="number"
-                    min="1"
-                    value={page}
-                    onChange={(event) =>
-                      setPage(Math.max(1, Number(event.target.value) || 1))
-                    }
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setPage((value) => value + 1)}
-                >
-                  Página siguiente
-                </button>
-              </div>
-              {url && (
-                <iframe
-                  title="Vista previa PDF"
-                  src={`${url}#page=${page}`}
-                  style={{
-                    width: "100%",
-                    minHeight: 650,
-                    border: "1px solid #d8e0da",
-                  }}
-                />
-              )}
-            </>
-          )}
-          {url && (
-            <p>
-              <a href={url} download={`recibo-${receiptId}-${index + 1}`}>
-                Descargar archivo
-              </a>
-            </p>
+          {proposal && (
+            <ReviewEditor
+              workspaceId={workspaceId}
+              origin="receipt"
+              originId={receiptId}
+            />
           )}
         </>
       )}

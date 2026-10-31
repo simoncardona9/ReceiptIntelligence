@@ -5,7 +5,7 @@
 Confirm the linked-chat product intent, users, receipt formats, privacy model,
 ledger integration expectations, language, and extraction-provider policy.
 Resolve every `PROVISIONAL` item that affects the first slice. The user gave
-`go` for Step 1, and Steps 1–3 are now implemented. Later steps still require
+`go` for Step 1, and Steps 1–4 are now implemented. Later steps still require
 their own authorization.
 
 ## Slice process
@@ -44,8 +44,8 @@ The roadmap contains 25 vertical slices across Steps 1–6. Their outcomes,
 boundaries, dependencies, risks, and acceptance conditions are defined in
 [slice-plan.md](slice-plan.md). Promote only one slice at a time, add its exact
 implementation plan and invalid cases, and identify its migration, security,
-extraction, export, and integration risks before it starts. Slices 1.1–3.4 are
-implemented; Slice 4.1 and later slices are not approved. Step 3 has outstanding
+extraction, export, and integration risks before it starts. Slices 1.1–4.4 are
+implemented; Slice 5.1 and later slices are not approved. Step 3 has outstanding
 acceptance verification documented in [development-progress.md](development-progress.md).
 
 ## Definition of done

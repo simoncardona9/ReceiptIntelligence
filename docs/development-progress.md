@@ -1,16 +1,109 @@
 # Development Progress
 
-## Current state — Step 3 implementation delivered; acceptance checks remain
+## Current state — Step 4 delivered; Step 3 acceptance limits remain
 
-Slices 3.1–3.4 are implemented on `step-3-local-extraction`. Slice 4.1 and
-later slices are not approved. The completed checks below establish the local
-synthetic path, but do not close every Step 3 acceptance condition.
+Slices 4.1–4.4 were implemented and pushed on `step-4-review-approval` after
+explicit user authorization. They provide source-aligned review, versioned
+correction, warning gates, and audited approval/rejection for receipts and
+manual expenses. Step 5 is not authorized. The Step 3 OCR and worker acceptance
+limits below remain open; the synthetic checks do not measure private-corpus
+accuracy or real resource-failure behavior.
+
+### Step 4 money UI follow-up
+
+- The intake, manual expense, and review forms now accept decimal pesos for UYU
+  and dollars for USD, including comma decimals. The UI converts amounts exactly
+  to integer centésimos at the API boundary; detail, proposal, editor, and
+  revision displays show decimal currency amounts. API and database contracts
+  remain integer minor units.
+- `pnpm check` passed: Prettier, ESLint, TypeScript, 55 TypeScript tests, 13
+  Python OCR tests, and the production build. Conversion tests cover grouped
+  values, exact centésimos, invalid precision, and unsafe integers. The
+  synthetic Compose `pnpm smoke:review` check passed after the UI change.
+- A production browser check with synthetic data rejected `1,234` on manual
+  creation, stored `123,45` as `12345` minor units, and displayed `123,45 UYU`.
+  Review rejected `123,456`, saved `123,46`, and displayed the revision as
+  `123,45 → 123,46`. The Compose web service was restored healthy afterward
+  with a temporary local command override because its usual startup install
+  retried npm registry DNS; no dependency or repository configuration changed.
+
+### Step 4 receipt review layout follow-up
+
+- Reproduced overlapping correction inputs with a synthetic OCR receipt. The
+  editor now constrains inputs to their grid cells, gives fields enough width,
+  aligns the tax checkbox, and separates adjacent form sections. Proposal
+  values, original text, confidence, and source actions have distinct rows.
+- `pnpm check` passed with 55 TypeScript tests, 13 Python OCR tests, and a
+  production build. Production browser checks at 390px, 900px, and 1170px
+  showed no horizontal page overflow or inputs extending beyond their labels.
+  The browser check used invented receipt data only.
+
+### Step 4 receipt viewer controls follow-up
+
+- Separated the source viewer's queue/duplicate links, file navigation buttons,
+  and image/PDF controls into spaced groups. Responsive controls now wrap into
+  their own grid cells instead of placing links against slider labels.
+- `pnpm check` passed with 55 TypeScript tests, 13 Python OCR tests, and the
+  production build. The synthetic receipt viewer was checked in the production
+  browser at 1170px, 900px, and 390px; links, buttons, slider labels, and the
+  receipt image did not overlap. The local web service was rebuilt and restored.
+
+### App layout audit follow-up
+
+- Audited all 11 page routes in the production browser at 320px, 390px, 900px,
+  and 1280px using synthetic workspace, receipt, and manual-expense data. The
+  final 44 route/width checks found no horizontal page overflow or controls
+  extending beyond the viewport. Visually inspected intake, workspace, inbox,
+  extraction, manual expense creation/detail, duplicate review, receipt review,
+  and the home page.
+- Constrained the intake file inputs and optional-data fieldset, separated its
+  fields, and replaced clipped native filenames with a selected-file count and
+  ordered filename list. Added spacing for extraction controls and manual
+  expense summary values, and sized the home title for 320px screens.
+- `pnpm check` passed with 55 TypeScript tests, 13 Python OCR tests, and a
+  production build. Browser selection of a synthetic PNG displayed its name
+  and count without overflow at 320px. The local web service was rebuilt and
+  restored healthy.
+
+### Step 4 final check
+
+- `pnpm check` passed: Prettier, ESLint, TypeScript, 52 TypeScript tests, 13 Python OCR tests, and Next.js production build.
+- `docker compose config --quiet` passed; PostgreSQL and web were healthy, and the worker was running. A repeated `docker compose exec -T web pnpm db:migrate` passed without new migrations.
+- Synthetic service checks passed in Compose: `pnpm smoke:auth`, `pnpm smoke:intake`, `pnpm smoke:extraction`, and `pnpm smoke:review`. With the worker stopped, `pnpm smoke:queue-state` passed; the worker was then restarted. The review smoke covers receipt and manual origin, invalid cases, authorization, retries, rejection, automatic approval, and approved revision updates.
+- Production browser checks across the slices covered image/PDF evidence highlights, mobile stacking, correction history, financial warning display, blocked auto selection, correction-triggered approval, and approved inbox status. These checks used invented source data only. No merge to `main` or later-step work was done.
+
+## Step 4 — Slice 4.4 verification
+
+- Added owner/editor manual approval and permanent rejection, owner-only per-record auto approval, and an approved-purchase snapshot linked to one receipt or manual origin. The same financial validation runs for manual and automatic approval. A blocked auto-selected record stays correctable and approves in the correction transaction once valid. Approved corrections update the snapshot with a revision and audit; invalid approved corrections fail without partial state.
+- Migration `0010_review_approval.sql` applied and repeated without changes. `pnpm smoke:review` passed for approval/rejection authorization, permanent rejection, idempotent approval, financial blockers, blocked auto selection, automatic approval after correction, purchase uniqueness, approved correction snapshot, inbox status, workspace scope, and immutable lifecycle audit events. `pnpm check` passed with 52 TypeScript tests, 13 Python tests, and production build. A production browser pass showed approval disabled for a synthetic arithmetic mismatch, owner auto selection while blocked, automatic approval after correction, the purchase ID, and approved inbox status. The normal Compose web service was restored afterward.
+
+## Step 4 — Slice 4.3 verification
+
+- Added deterministic server-side warning evaluation for mandatory merchant, total, and category; OCR confidence/conflicts; tax unknown or contradictory status; exact integer arithmetic; missing export fields; and unavailable line items. Warnings expose financial/informational severity and separate approval/export blockers. The review screen displays them and reasoned confirmation of a mandatory OCR value creates an immutable revision and audit event.
+- Migration `0009_review_confirmation.sql` applied and repeated without changes. `pnpm smoke:review` passed with blocked/ready states, informational export blockers, reasoned confirmation, receipt/manual corrections, authorization, retry, and audit assertions. Unit tests exercise mismatched arithmetic, tax unknown, missing mandatory fields, and conflicting/low-confidence OCR. `pnpm check` passed with 52 TypeScript tests, 13 Python tests, and production build. A production browser pass showed the informative export warning, then a synthetic discount correction produced the expected financial approval blocker.
+
+## Step 4 — Slice 4.2 verification
+
+- Added normalized receipt/manual review state and editor UI. The first read stays read-only at version 0; corrections preserve immutable proposal/manual originals, reject stale versions and changed base proposals, append before/after revisions with reason and actor, and write a separate content-free audit event atomically. Idempotency keys make retries safe.
+- Migration `0008_review_revisions.sql` was applied to the local synthetic database and a repeated `pnpm db:migrate` passed. The first Compose web start timed out connecting to PostgreSQL after the temporary production UI check; recreating the web service restored connectivity. The SQL itself passed a transaction-wrapped local PostgreSQL check. `pnpm smoke:review` passed for owner/editor/viewer rules, invalid money, missing/reused keys, stale version and proposal rejection, receipt and manual corrections, retained original values, audit count, and revision immutability. `pnpm check` passed with 49 TypeScript tests, 13 Python tests, and production build. A production browser pass saved a receipt category correction and displayed its before/after history.
+- Approved-record corrections were exercised with Slice 4.4 once approved purchases existed.
+
+## Step 4 — Slice 4.1 delivered
+
+- Created `step-4-review-approval` from updated `origin/main` on 2026-10-30.
+- The review screen presents extraction fields and the authorized source side by side, selects the relevant source and page from receipt-level field evidence, and marks normalized image or rendered PDF coordinates when present. Missing regions are explicit. PDF.js renders private PDF pages for overlays and page navigation. Existing image zoom, rotation, crop, source access, and mobile stacking remain available. Review is read-only.
+- `pnpm check` passed: formatting, lint, TypeScript, 46 TypeScript tests, 13 Python tests, and production build. The Compose production server rendered synthetic extracted PNG and two-page PDF sources beside field values; selecting the total displayed its source region on the correct image or PDF page. At 390px width, the layout stacked into one column without horizontal overflow. The local development server's HMR WebSocket did not connect through the browser tool, so the rendered check used `next start` and the normal development service was restored afterward.
+
+## Step 3 delivery record — acceptance checks remain
+
+Slices 3.1–3.4 were implemented on `step-3-local-extraction`. The completed
+checks below establish the local synthetic path, but do not close every Step 3
+acceptance condition.
 
 The repository is in active development. The current process supports either
 an explicitly authorized full-step run or user approval after each slice; both
 record checks and push slice commits to the step branch. See
-[development-process.md](development-process.md). This process update does not
-authorize Step 4.
+[development-process.md](development-process.md).
 
 - Added deterministic, provider-neutral proposal normalization for Spanish
   receipt fields and line items. Exact text, confidence, source page/region,
@@ -19,7 +112,8 @@ authorize Step 4.
 - Migration `0007_receipt_proposals.sql` adds immutable proposals. Successful
   extraction now commits evidence, proposal, job completion, receipt `review`
   status, and audit together. The scoped read API and source page show a
-  read-only proposal. Approval, correction, and export remain Step 4–6 work.
+  read-only proposal. At the Step 3 boundary, approval, correction, and export
+  were not yet present.
 - `pnpm check` passed with 46 TypeScript tests, 13 Python OCR tests, and the
   production build. `docker compose config --quiet` and repeated migrations
   passed. Final Compose web and worker images built and services became healthy.

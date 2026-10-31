@@ -7,7 +7,14 @@ import { useEffect, useState } from "react";
 type Entry = {
   id: string;
   origin: "receipt" | "manual";
-  status: "staged" | "processing" | "failed" | "extracted" | "review";
+  status:
+    | "staged"
+    | "processing"
+    | "failed"
+    | "extracted"
+    | "review"
+    | "approved"
+    | "rejected";
   createdAt: string;
   merchant: string | null;
   sourceCount: number;
@@ -73,6 +80,8 @@ export default function InboxPage() {
                   failed: "Falló",
                   extracted: "Extraído",
                   review: "Para revisar",
+                  approved: "Aprobado",
+                  rejected: "Rechazado permanentemente",
                 }[entry.status]
               }{" "}
               · {new Date(entry.createdAt).toLocaleString("es-UY")}
