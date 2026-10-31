@@ -48,6 +48,23 @@ accuracy or real resource-failure behavior.
   browser at 1170px, 900px, and 390px; links, buttons, slider labels, and the
   receipt image did not overlap. The local web service was rebuilt and restored.
 
+### App layout audit follow-up
+
+- Audited all 11 page routes in the production browser at 320px, 390px, 900px,
+  and 1280px using synthetic workspace, receipt, and manual-expense data. The
+  final 44 route/width checks found no horizontal page overflow or controls
+  extending beyond the viewport. Visually inspected intake, workspace, inbox,
+  extraction, manual expense creation/detail, duplicate review, receipt review,
+  and the home page.
+- Constrained the intake file inputs and optional-data fieldset, separated its
+  fields, and replaced clipped native filenames with a selected-file count and
+  ordered filename list. Added spacing for extraction controls and manual
+  expense summary values, and sized the home title for 320px screens.
+- `pnpm check` passed with 55 TypeScript tests, 13 Python OCR tests, and a
+  production build. Browser selection of a synthetic PNG displayed its name
+  and count without overflow at 320px. The local web service was rebuilt and
+  restored healthy.
+
 ### Step 4 final check
 
 - `pnpm check` passed: Prettier, ESLint, TypeScript, 52 TypeScript tests, 13 Python OCR tests, and Next.js production build.

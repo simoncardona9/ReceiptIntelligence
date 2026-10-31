@@ -114,29 +114,33 @@ export default function ExtractionPage() {
         </p>
       )}
       {queue?.paused && !queue.resourcePaused && <p>La cola está pausada.</p>}
-      {queue?.role === "owner" && (
-        <div className="actions">
-          <button
-            type="button"
-            onClick={() =>
-              void action(
-                `extraction-queue/${queue.paused ? "resume" : "pause"}`,
-              )
-            }
-          >
-            {queue.paused ? "Reanudar cola" : "Pausar cola"}
-          </button>
+      {(queue?.role === "owner" ||
+        (typeof Notification !== "undefined" &&
+          Notification.permission === "default")) && (
+        <div className="actions queue-control-actions">
+          {queue?.role === "owner" && (
+            <button
+              type="button"
+              onClick={() =>
+                void action(
+                  `extraction-queue/${queue.paused ? "resume" : "pause"}`,
+                )
+              }
+            >
+              {queue.paused ? "Reanudar cola" : "Pausar cola"}
+            </button>
+          )}
+          {typeof Notification !== "undefined" &&
+            Notification.permission === "default" && (
+              <button
+                type="button"
+                onClick={() => void Notification.requestPermission()}
+              >
+                Activar avisos del navegador
+              </button>
+            )}
         </div>
       )}
-      {typeof Notification !== "undefined" &&
-        Notification.permission === "default" && (
-          <button
-            type="button"
-            onClick={() => void Notification.requestPermission()}
-          >
-            Activar avisos del navegador
-          </button>
-        )}
       {error && (
         <p role="alert" className="error">
           {error}

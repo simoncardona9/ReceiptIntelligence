@@ -57,17 +57,25 @@ export default function ManualExpenseDetailPage() {
       {expense && (
         <>
           <p className="muted">ID: {expense.id} · Sin archivo ni extracción</p>
-          <dl>
-            <dt>Comercio</dt>
-            <dd>{expense.merchant}</dd>
-            <dt>Fecha</dt>
-            <dd>{expense.date}</dd>
-            <dt>Total</dt>
-            <dd>
-              {pesosDisplay(expense.totalMinor)} {expense.currency}
-            </dd>
-            <dt>Categoría provisional</dt>
-            <dd>{expense.categoryName ?? "Sin categoría"}</dd>
+          <dl className="expense-summary">
+            <div>
+              <dt>Comercio</dt>
+              <dd>{expense.merchant}</dd>
+            </div>
+            <div>
+              <dt>Fecha</dt>
+              <dd>{expense.date}</dd>
+            </div>
+            <div>
+              <dt>Total</dt>
+              <dd>
+                {pesosDisplay(expense.totalMinor)} {expense.currency}
+              </dd>
+            </div>
+            <div>
+              <dt>Categoría provisional</dt>
+              <dd>{expense.categoryName ?? "Sin categoría"}</dd>
+            </div>
           </dl>
           <h2>Artículos</h2>
           {expense.lines.length === 0 && <p>Sin artículos detallados.</p>}

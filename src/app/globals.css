@@ -30,6 +30,11 @@ h3 {
   line-height: 1.2;
 }
 
+.home-title {
+  font-size: clamp(1.5rem, 7.5vw, 2rem);
+  overflow-wrap: anywhere;
+}
+
 form,
 .stack {
   display: grid;
@@ -105,6 +110,86 @@ nav,
 
 .success {
   color: #075e3f;
+}
+
+.receipt-intake-form,
+.receipt-intake-form label,
+.receipt-intake-form fieldset {
+  min-width: 0;
+}
+
+.receipt-intake-form input,
+.receipt-intake-form select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.receipt-intake-form input[type="file"] {
+  padding: 0;
+  border: 0;
+  color: transparent;
+}
+
+.receipt-intake-form input[type="file"]::file-selector-button {
+  min-height: 2.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #8b9a90;
+  border-radius: 6px;
+  background: #e9f5ed;
+  color: #075e3f;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.receipt-intake-form fieldset {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+}
+
+.receipt-intake-form legend {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.selected-sources p {
+  margin: 0;
+}
+
+.selected-sources ol {
+  margin: 0.5rem 0 0;
+  padding-left: 1.5rem;
+  overflow-wrap: anywhere;
+}
+
+.queue-control-actions {
+  margin: 1rem 0;
+}
+
+.queue-control-actions button {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.expense-summary {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+
+.expense-summary > div {
+  min-width: 0;
+}
+
+.expense-summary dt {
+  font-weight: 600;
+}
+
+.expense-summary dd {
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
 }
 
 :focus-visible {

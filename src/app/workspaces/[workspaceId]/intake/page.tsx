@@ -161,7 +161,7 @@ export default function ReceiptIntakePage() {
         <p>Tu rol permite ver recibos, pero no cargarlos.</p>
       )}
       {(role === "owner" || role === "editor") && (
-        <form onSubmit={submit}>
+        <form className="receipt-intake-form" onSubmit={submit}>
           <label htmlFor="receipt-files">Archivos del recibo</label>
           <input
             id="receipt-files"
@@ -184,7 +184,22 @@ export default function ReceiptIntakePage() {
               event.target.value = "";
             }}
           />
-          <p className="muted">{files.length} archivo(s) seleccionados</p>
+          <div className="selected-sources" role="status">
+            <p className="muted">
+              {files.length === 0
+                ? "Ningún archivo seleccionado"
+                : files.length === 1
+                  ? "1 archivo seleccionado"
+                  : `${files.length} archivos seleccionados`}
+            </p>
+            {files.length > 0 && (
+              <ol>
+                {files.map((file, index) => (
+                  <li key={`${file.name}:${index}`}>{file.name}</li>
+                ))}
+              </ol>
+            )}
+          </div>
           <fieldset>
             <legend>Datos opcionales para detectar recibos parecidos</legend>
             <label>
