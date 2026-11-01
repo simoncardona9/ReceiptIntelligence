@@ -1,5 +1,11 @@
 # Development Progress
 
+## Step 5 — Slice 5.1 verification
+
+- Created `step-5-categories-products-records` from merged `main`. Added a workspace-local hierarchical expense category catalog adapted from ProyectoFinanzas' nine expense seed categories, explicit import, category creation, suggestions, confirmed mappings, and owner-controlled archive/merge. Historical category IDs remain available after retirement.
+- Migration `0011_categories.sql` applied and repeated through `docker compose exec -T web pnpm db:migrate`. `pnpm check` passed: formatting, lint, TypeScript, 56 TypeScript tests, 13 Python tests, and production build. The first smoke attempt hit the previously running old production build; after stopping the web service, `docker compose run --rm --no-deps -e NODE_ENV=production web pnpm build` passed and the service was restarted. `docker compose exec -T web pnpm smoke:categories` passed with synthetic owner/editor/viewer/outsider accounts, import hierarchy, retry, conflicting retry, normalized duplicate, remembered mapping, archive authority, and parent protection.
+- The imported hierarchy is a local snapshot. Direct ProyectoFinanzas export remains Step 6 scope.
+
 ## Current state — Step 4 delivered; Step 3 acceptance limits remain
 
 Slices 4.1–4.4 were implemented and pushed on `step-4-review-approval` after

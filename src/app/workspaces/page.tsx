@@ -251,6 +251,10 @@ export default function WorkspacesPage() {
                 <Link href={`/workspaces/${workspace.id}/inbox`}>
                   Abrir bandeja
                 </Link>
+                {" · "}
+                <Link href={`/workspaces/${workspace.id}/categories`}>
+                  Categorías
+                </Link>
               </p>
               {workspace.role !== "viewer" && (
                 <p>
