@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { pesosDisplay } from "@/app/money";
+import { ReviewEditor } from "../../review-editor";
 
 type Expense = {
   id: string;
@@ -54,20 +56,26 @@ export default function ManualExpenseDetailPage() {
       )}
       {expense && (
         <>
-          <p className="muted">
-            ID: {expense.id} · En espera · Sin archivo ni extracción
-          </p>
-          <dl>
-            <dt>Comercio</dt>
-            <dd>{expense.merchant}</dd>
-            <dt>Fecha</dt>
-            <dd>{expense.date}</dd>
-            <dt>Total</dt>
-            <dd>
-              {expense.totalMinor} centésimos {expense.currency}
-            </dd>
-            <dt>Categoría provisional</dt>
-            <dd>{expense.categoryName ?? "Sin categoría"}</dd>
+          <p className="muted">ID: {expense.id} · Sin archivo ni extracción</p>
+          <dl className="expense-summary">
+            <div>
+              <dt>Comercio</dt>
+              <dd>{expense.merchant}</dd>
+            </div>
+            <div>
+              <dt>Fecha</dt>
+              <dd>{expense.date}</dd>
+            </div>
+            <div>
+              <dt>Total</dt>
+              <dd>
+                {pesosDisplay(expense.totalMinor)} {expense.currency}
+              </dd>
+            </div>
+            <div>
+              <dt>Categoría provisional</dt>
+              <dd>{expense.categoryName ?? "Sin categoría"}</dd>
+            </div>
           </dl>
           <h2>Artículos</h2>
           {expense.lines.length === 0 && <p>Sin artículos detallados.</p>}
@@ -75,10 +83,15 @@ export default function ManualExpenseDetailPage() {
             {expense.lines.map((line, index) => (
               <li key={index}>
                 {line.description} · {line.quantityMilli} milésimos ·{" "}
-                {line.totalMinor} centésimos
+                {pesosDisplay(line.totalMinor)} {expense.currency}
               </li>
             ))}
           </ul>
+          <ReviewEditor
+            workspaceId={workspaceId}
+            origin="manual"
+            originId={expenseId}
+          />
         </>
       )}
     </main>

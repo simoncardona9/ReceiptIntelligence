@@ -10,8 +10,16 @@ and structure parsing for document images/PDFs.
 
 Use **Tesseract** as the current Compose CPU runtime and benchmark baseline.
 It has official Spanish language data and a simple local deployment model.
-The project has not yet compared it with real PaddleOCR models on the same
-corpus, so the production default remains undecided pending the gates below.
+The project compared real PaddleOCR CPU models with Tesseract on the same five
+invented fixtures in November 2026. The production default remains undecided
+pending an approved private-corpus evaluation.
+
+When using local PaddleOCR 3 models, set both model directories through
+`OCR_PADDLE_DETECTION_MODEL_DIR` and `OCR_PADDLE_RECOGNITION_MODEL_DIR`. Set
+`OCR_PADDLE_DETECTION_MODEL_NAME` and `OCR_PADDLE_RECOGNITION_MODEL_NAME` to
+their official model names when they differ from PaddleOCR's defaults (for
+example, `latin_PP-OCRv5_mobile_rec` for Spanish recognition). Model files
+remain outside version control.
 
 Do not choose a local AI/document model as the first extraction dependency.
 Evaluate it only after the OCR baseline produces a measured corpus of hard
@@ -57,6 +65,21 @@ and PDF receipts across supermarkets, restaurants, fuel, and utilities. Measure:
 The OCR engine must not be allowed to approve or export a receipt directly.
 Its output is always a proposal subject to the application validation and
 review rules.
+
+## November 2026 local CPU comparison
+
+The same generated five-case manifest was processed through the real worker
+adapter with PaddleOCR 3.2.0 (`PP-OCRv5_server_det` and
+`latin_PP-OCRv5_mobile_rec`) and the Compose Tesseract runtime. PaddleOCR
+matched 76/76 expected evidence lines, compared with 52/76 for Tesseract.
+Both runs completed without worker failures. The benchmark's field matching
+was 100% for both; coordinate matching was 100% for PaddleOCR and 63.1% for
+Tesseract. Mean observed latency was 5,690.48 ms for PaddleOCR and 723.83 ms
+for Tesseract. Peak sampled host RSS was 1,580,128 KiB and 24,524 KiB,
+respectively. PaddleOCR ran in an isolated host Python environment while
+Tesseract ran in Compose, so resource figures are indicative rather than a
+strict like-for-like runtime comparison. Neither result measures accuracy on
+real receipts. No GPU was available on the check host.
 
 ## Slice 3.1 synthetic benchmark
 

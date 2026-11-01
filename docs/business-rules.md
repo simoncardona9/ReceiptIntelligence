@@ -8,13 +8,22 @@
 4. Approval requires all mandatory fields and explicit resolution of blocking warnings.
 5. Rejection preserves the source and proposal history but excludes it from approved reports.
 6. An approved purchase is corrected through a revision, never by erasing evidence.
+7. Permanent rejection cannot be reopened. Owner-selected automatic approval
+   runs the same financial validation as manual approval, including after a
+   later correction resolves blockers.
 
 ## Money and dates
 
 - Preserve the source display value and normalized minor-unit value.
+- Display and accept monetary amounts in pesos or dollars with two decimal
+  places in the UI; convert exactly to integer centésimos at the API boundary.
 - Preserve the receipt currency; never combine currencies implicitly.
 - Tax and subtotal must reconcile to the total when all required values are present.
 - A mismatch is a review warning or blocking error according to configured severity.
+- When subtotal, tax, and total are known, their integer minor-unit values must
+  satisfy subtotal minus discount (zero if absent) plus tax equals total.
+- Unknown tax is explicit and cannot coexist with a tax amount. It warns but
+  does not by itself block approval.
 - Receipt date is distinct from upload date and processing date.
 
 ## Confidence and evidence

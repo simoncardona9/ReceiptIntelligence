@@ -82,10 +82,14 @@ class WorkerTests(unittest.TestCase):
             module.PaddleOCR = FakePaddle
             with patch.dict(worker.os.environ, {
                 "OCR_PADDLE_DETECTION_MODEL_DIR": str(model),
+                "OCR_PADDLE_DETECTION_MODEL_NAME": "PP-OCRv5_server_det",
                 "OCR_PADDLE_RECOGNITION_MODEL_DIR": str(model),
+                "OCR_PADDLE_RECOGNITION_MODEL_NAME": "latin_PP-OCRv5_mobile_rec",
             }), patch.dict(sys.modules, {"paddleocr": module}):
                 regions = worker.paddle_regions(Path("unused.png"), 100, 100, "gpu")
             self.assertEqual(seen["device"], "gpu")
+            self.assertEqual(seen["text_detection_model_name"], "PP-OCRv5_server_det")
+            self.assertEqual(seen["text_recognition_model_name"], "latin_PP-OCRv5_mobile_rec")
             self.assertEqual(regions[0]["box"], [0.1, 0.2, 0.9, 0.4])
             self.assertEqual(regions[0]["confidence"], 0.92)
 

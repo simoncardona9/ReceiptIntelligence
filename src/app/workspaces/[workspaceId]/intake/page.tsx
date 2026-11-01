@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { parsePesos } from "@/app/money";
 
 type Workspace = { id: string; role: "owner" | "editor" | "viewer" };
 type Receipt = { id: string; status: "staged"; sourceIds: string[] };
@@ -23,7 +24,7 @@ export default function ReceiptIntakePage() {
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [merchant, setMerchant] = useState("");
   const [date, setDate] = useState("");
-  const [totalMinor, setTotalMinor] = useState("");
+  const [totalPesos, setTotalPesos] = useState("");
   const [currency, setCurrency] = useState<"UYU" | "USD">("UYU");
 
   useEffect(() => {
@@ -67,9 +68,16 @@ export default function ReceiptIntakePage() {
       setError("Elige entre 1 y 20 imágenes o PDF de hasta 10 MB cada uno.");
       return;
     }
-    const factParts = [merchant.trim(), date, totalMinor];
+    const factParts = [merchant.trim(), date, totalPesos];
     if (factParts.some(Boolean) && !factParts.every(Boolean)) {
       setError("Completa comercio, fecha y total, o deja los tres vacíos.");
+      return;
+    }
+    const parsedTotal = totalPesos === "" ? null : parsePesos(totalPesos);
+    if (totalPesos !== "" && parsedTotal === null) {
+      setError(
+        "Ingresa un total válido con hasta dos decimales, por ejemplo 123,45.",
+      );
       return;
     }
     setBusy(true);
@@ -104,12 +112,12 @@ export default function ReceiptIntakePage() {
         },
         body: JSON.stringify({
           sourceIds,
-          ...(merchant.trim() && date && totalMinor !== ""
+          ...(merchant.trim() && date && parsedTotal !== null
             ? {
                 facts: {
                   merchant: merchant.trim(),
                   date,
-                  totalMinor: Number(totalMinor),
+                  totalMinor: parsedTotal,
                   currency,
                 },
               }
@@ -153,7 +161,7 @@ export default function ReceiptIntakePage() {
         <p>Tu rol permite ver recibos, pero no cargarlos.</p>
       )}
       {(role === "owner" || role === "editor") && (
-        <form onSubmit={submit}>
+        <form className="receipt-intake-form" onSubmit={submit}>
           <label htmlFor="receipt-files">Archivos del recibo</label>
           <input
             id="receipt-files"
@@ -176,7 +184,22 @@ export default function ReceiptIntakePage() {
               event.target.value = "";
             }}
           />
-          <p className="muted">{files.length} archivo(s) seleccionados</p>
+          <div className="selected-sources" role="status">
+            <p className="muted">
+              {files.length === 0
+                ? "Ningún archivo seleccionado"
+                : files.length === 1
+                  ? "1 archivo seleccionado"
+                  : `${files.length} archivos seleccionados`}
+            </p>
+            {files.length > 0 && (
+              <ol>
+                {files.map((file, index) => (
+                  <li key={`${file.name}:${index}`}>{file.name}</li>
+                ))}
+              </ol>
+            )}
+          </div>
           <fieldset>
             <legend>Datos opcionales para detectar recibos parecidos</legend>
             <label>
@@ -196,13 +219,13 @@ export default function ReceiptIntakePage() {
               />
             </label>
             <label>
-              Total en centésimos
+              Total en {currency === "UYU" ? "pesos" : "dólares"} ({currency})
               <input
-                type="number"
-                min="0"
-                step="1"
-                value={totalMinor}
-                onChange={(event) => setTotalMinor(event.target.value)}
+                type="text"
+                inputMode="decimal"
+                placeholder="123,45"
+                value={totalPesos}
+                onChange={(event) => setTotalPesos(event.target.value)}
               />
             </label>
             <label>

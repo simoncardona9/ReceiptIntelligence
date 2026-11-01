@@ -2,15 +2,15 @@
 
 Successful local OCR evidence is normalized into a version 1 proposal in the
 same transaction that completes its queue job. A proposal is immutable and
-remains separate from approved purchases. It cannot be edited, approved, or
-exported in Step 3. The receipt moves to `review` only after its evidence,
+remains separate from approved purchases. The immutable proposal itself is
+never edited or exported. The receipt moves to `review` only after its evidence,
 proposal, job completion, and audit event all commit.
 
 `GET /api/workspaces/{workspaceId}/receipts/{receiptId}/proposal` returns
 `{stored:{id,receiptId,jobId,createdAt,proposal}}` to any member of that
 workspace. Missing or foreign proposals return `404`. The existing source
-review page displays a read-only summary; corrections and full source-region
-highlighting belong to Step 4.
+review page displays the proposal beside the source. The Step 4 correction API
+stores normalized revisions separately, with source-region highlighting.
 
 `proposal.fields` contains `merchant`, `date`, `totalMinor`, `currency`,
 `subtotalMinor`, `taxMinor`, and `paymentMethod`. Each present candidate has
@@ -25,7 +25,7 @@ line total. Missing or ambiguous items are left unfilled rather than invented.
 `proposal.conflicts` preserves alternative candidates with different
 normalized values. `proposal.warnings` lists missing fields, unavailable line
 items, and field conflicts. These warnings are informational at this stage;
-the financial blocker and approval policy is Slice 4.3. The parser is
+the financial blocker and approval policy is defined in [review-api.md](review-api.md). The parser is
 deterministic and provider-neutral, with no OCR engine fields in the proposal.
 The original provider-neutral page evidence remains in `extraction_evidence`
 for later review. Payment-card-like long digit sequences are redacted by the
