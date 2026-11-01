@@ -152,7 +152,9 @@ def paddle_regions(path: Path, width: int, height: int, device: str) -> list[dic
         with open(os.devnull, "w", encoding="utf-8") as null, redirect_stdout(null):
             from paddleocr import PaddleOCR
             model = PaddleOCR(
+                text_detection_model_name=os.environ.get("OCR_PADDLE_DETECTION_MODEL_NAME") or None,
                 text_detection_model_dir=detection,
+                text_recognition_model_name=os.environ.get("OCR_PADDLE_RECOGNITION_MODEL_NAME") or None,
                 text_recognition_model_dir=recognition,
                 use_doc_orientation_classify=False,
                 use_doc_unwarping=False,

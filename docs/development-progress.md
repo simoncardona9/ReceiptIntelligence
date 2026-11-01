@@ -9,6 +9,38 @@ manual expenses. Step 5 is not authorized. The Step 3 OCR and worker acceptance
 limits below remain open; the synthetic checks do not measure private-corpus
 accuracy or real resource-failure behavior.
 
+### Step 3 acceptance follow-up — 2026-11-01
+
+- Installed PaddleOCR 3.2.0 and PaddlePaddle 3.2.0 in a temporary Python 3.11
+  environment, with official CPU models stored outside Git. The real adapter
+  initially rejected the Spanish recognition directory because PaddleOCR used
+  its default model name; optional explicit detection/recognition model names
+  now let it load that local model. All 13 Python OCR worker tests passed.
+- Ran both real OCR adapters on the same five invented fixtures. PaddleOCR CPU
+  matched 76/76 evidence lines, Tesseract CPU 52/76, with zero execution
+  failures. The corpus comparison verified matching manifest hashes. PaddleOCR
+  averaged 5,690.48 ms and 1,580,128 KiB sampled host RSS; Tesseract averaged
+  723.83 ms and 24,524 KiB. Runtime environments differ (host Python versus
+  Compose), so these resource numbers are indicative. No GPU was present.
+- In live Compose services, stopped a temporary worker while a synthetic job
+  was running. The regular worker recovered and completed it on attempt 2.
+  Cancelled a separate running synthetic job during a controlled OCR delay;
+  it remained cancelled. An injected `RESOURCE_FAILURE` from the OCR process
+  failed its job and resource-paused the workspace; owner resume cleared both
+  pause flags. This exercises the live failure handling, but actual operating
+  system resource exhaustion remains untested.
+- In Chromium, owner, editor, and viewer saw the queue and receipt proposal.
+  Only the owner saw the pause control; the viewer had no review actions and
+  the proposal editor fields were disabled. The browser offered notification
+  opt-in under default permission, hid the button after permission was granted,
+  and invoked a completion notification for a newly completed synthetic job.
+  The notification constructor was intercepted locally to observe the call.
+- The user confirmed there is no approved private receipt corpus yet. Real
+  receipt accuracy and production OCR selection remain open until one is
+  available outside Git. `pnpm check` passed after the adapter and record
+  updates: format, lint, TypeScript, 55 TypeScript tests, 13 Python OCR tests,
+  and the production build. Step 5 remains unauthorized.
+
 ### Step 4 money UI follow-up
 
 - The intake, manual expense, and review forms now accept decimal pesos for UYU
@@ -134,19 +166,14 @@ record checks and push slice commits to the step branch. See
 
 ### Step 3 verification still outstanding
 
-- Run the PaddleOCR adapter with installed local models on CPU and, when
-  hardware is available, GPU; compare it with Tesseract on the same corpus.
+- Run a GPU comparison when suitable hardware becomes available; the CPU
+  comparison with real PaddleOCR models and Tesseract is recorded above.
 - Evaluate an approved private receipt corpus outside version control before
   selecting a production OCR default. The five invented fixtures are a
   repeatable baseline, not a production accuracy measure.
-- Exercise actual worker termination/restart during a running job, cancellation
-  while OCR is in flight, and resource exhaustion against live services. The
-  database queue-state smoke covers recovery, stale-result rejection, and
-  resource-pause transitions with the worker stopped; it does not reproduce
-  those operating conditions.
-- Manually check the browser queue, read-only proposal, and opt-in notification
-  flow across roles. Route and API smoke checks do not establish the rendered
-  interaction or browser permission behavior.
+- Induce actual operating system resource exhaustion in a controlled
+  environment. The live service handled an injected OCR resource failure, but
+  that does not establish behavior under real memory or disk pressure.
 
 ## Step 3 — Slice 3.3 delivered
 
