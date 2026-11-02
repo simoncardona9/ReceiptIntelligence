@@ -192,6 +192,12 @@ export class PostgresSourceRepository implements SourceRepository {
     actorUserId: string;
   }): Promise<SourceMetadata> {
     const row = await this.findAuthorized(input, "read");
+    await this.requireVisibleSource(
+      this.pool,
+      input.workspaceId,
+      input.sourceId,
+      input.actorUserId,
+    );
     if (row.removedAt)
       throw new DomainError("SOURCE_NOT_FOUND", 404, "Source file not found.");
     return {
@@ -229,6 +235,12 @@ export class PostgresSourceRepository implements SourceRepository {
           404,
           "Source file not found.",
         );
+      await this.requireVisibleSource(
+        client,
+        input.workspaceId,
+        input.sourceId,
+        input.actorUserId,
+      );
       await this.audit(
         client,
         input.workspaceId,
@@ -237,6 +249,27 @@ export class PostgresSourceRepository implements SourceRepository {
         "source_downloaded",
       );
     });
+  }
+
+  private async requireVisibleSource(
+    client: Pool | PoolClient,
+    workspaceId: string,
+    sourceId: string,
+    actorUserId: string,
+  ): Promise<void> {
+    const result = await client.query<{ hidden: boolean }>(
+      `SELECT EXISTS (
+        SELECT 1 FROM receipt_sources rs
+        JOIN approved_purchases p ON p.workspace_id = rs.workspace_id
+          AND p.origin = 'receipt' AND p.origin_id = rs.receipt_id
+        JOIN memberships m ON m.workspace_id = rs.workspace_id AND m.user_id = $3
+        WHERE rs.workspace_id = $1 AND rs.source_file_id = $2
+          AND p.archived_at IS NOT NULL AND m.role <> 'owner'
+      ) AS hidden`,
+      [workspaceId, sourceId, actorUserId],
+    );
+    if (result.rows[0]?.hidden)
+      throw new DomainError("SOURCE_NOT_FOUND", 404, "Source file not found.");
   }
 
   async markRemoved(input: {

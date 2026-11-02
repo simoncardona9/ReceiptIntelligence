@@ -193,6 +193,15 @@ export class ReceiptService {
     const client = await this.pool.connect();
     try {
       await this.authorize(client, workspaceId, actorUserId, "read");
+      const archived = await client.query<{ hidden: boolean }>(
+        `SELECT EXISTS (SELECT 1 FROM approved_purchases p
+         JOIN memberships m ON m.workspace_id = p.workspace_id AND m.user_id = $2
+         WHERE p.workspace_id = $1 AND p.origin = 'receipt' AND p.origin_id = $3
+         AND p.archived_at IS NOT NULL AND m.role <> 'owner') AS hidden`,
+        [workspaceId, actorUserId, receiptId],
+      );
+      if (archived.rows[0]?.hidden)
+        throw new DomainError("RECEIPT_NOT_FOUND", 404, "Receipt not found.");
       return await this.getWithClient(client, workspaceId, receiptId);
     } finally {
       client.release();

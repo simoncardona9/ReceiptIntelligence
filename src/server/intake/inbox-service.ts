@@ -29,6 +29,7 @@ export class InboxService {
         [workspaceId, actorUserId],
       );
       requireWorkspacePermission(membership.rows[0]?.role ?? null, "read");
+      const role = membership.rows[0].role;
       const result = await client.query<{
         id: string;
         origin: "receipt" | "manual";
@@ -46,7 +47,8 @@ export class InboxService {
            LEFT JOIN review_records rr ON rr.workspace_id = r.workspace_id AND rr.origin = 'receipt' AND rr.origin_id = r.id
            LEFT JOIN receipt_intake_facts f ON f.receipt_id = r.id AND f.workspace_id = r.workspace_id
            LEFT JOIN receipt_sources rs ON rs.receipt_id = r.id AND rs.workspace_id = r.workspace_id
-           WHERE r.workspace_id = $1
+           LEFT JOIN approved_purchases p ON p.workspace_id = r.workspace_id AND p.origin = 'receipt' AND p.origin_id = r.id
+           WHERE r.workspace_id = $1 AND (p.archived_at IS NULL OR $2 = 'owner')
            GROUP BY r.id, f.merchant_key, rr.lifecycle_status, rr.fields
            UNION ALL
            SELECT m.id, 'manual'::text AS origin,
@@ -54,9 +56,10 @@ export class InboxService {
              m.created_at AS "createdAt", COALESCE(rr.fields->>'merchant', m.merchant), '0'::text AS "sourceCount"
            FROM manual_expenses m
            LEFT JOIN review_records rr ON rr.workspace_id = m.workspace_id AND rr.origin = 'manual' AND rr.origin_id = m.id
-           WHERE m.workspace_id = $1
+           LEFT JOIN approved_purchases p ON p.workspace_id = m.workspace_id AND p.origin = 'manual' AND p.origin_id = m.id
+           WHERE m.workspace_id = $1 AND (p.archived_at IS NULL OR $2 = 'owner')
          ) entries ORDER BY "createdAt" DESC, id DESC LIMIT 100`,
-        [workspaceId],
+        [workspaceId, role],
       );
       return result.rows.map((row) => ({
         id: row.id,

@@ -251,6 +251,22 @@ export default function WorkspacesPage() {
                 <Link href={`/workspaces/${workspace.id}/inbox`}>
                   Abrir bandeja
                 </Link>
+                {" · "}
+                <Link href={`/workspaces/${workspace.id}/categories`}>
+                  Categorías
+                </Link>
+                {" · "}
+                <Link href={`/workspaces/${workspace.id}/products`}>
+                  Productos
+                </Link>
+                {" · "}
+                <Link href={`/workspaces/${workspace.id}/allocations`}>
+                  Distribuciones
+                </Link>
+                {" · "}
+                <Link href={`/workspaces/${workspace.id}/approved`}>
+                  Compras aprobadas
+                </Link>
               </p>
               {workspace.role !== "viewer" && (
                 <p>

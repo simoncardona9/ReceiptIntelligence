@@ -64,7 +64,7 @@ caller's memberships. Current resource contracts are:
   for a receipt in `review`.
 - [review-api.md](review-api.md): read normalized review state, append reasoned corrections, and approve or reject.
 
-Purchase search contracts will be defined in Step 5. No `/api/v1/receipts` or
+Purchase search contracts are defined in [approved-record-api.md](approved-record-api.md). No `/api/v1/receipts` or
 `/api/v1/purchases` routes are implemented.
 
 Use UUID identifiers, ISO dates, explicit minor-unit money plus currency, stable

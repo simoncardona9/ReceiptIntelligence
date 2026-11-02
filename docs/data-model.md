@@ -2,8 +2,8 @@
 
 ## Core entities
 
-The sections below include persisted Step 1–4 entities and planned Step 5–6
-entities. The latter are identified where they appear.
+The sections below include persisted Step 1–5 entities and planned Step 6
+entities. Planned entities are identified where they appear.
 
 ### Workspace, user, membership, and session
 
@@ -59,29 +59,40 @@ receipt source, extraction job, OCR evidence, or implied extraction provenance.
 The same review, correction, and approval rules apply without implying OCR
 provenance. Revisions retain actor, reason, and prior/new values.
 
-### ReceiptLineItem (proposal data; approved persistence planned)
+### ReceiptLineItem
 
-Proposed line items currently live inside the immutable proposal JSON; manual
-expense lines are stored separately. Approved line-item storage is planned.
-Monetary values use integer minor units or a fixed-precision decimal type.
+Proposed line items live inside the immutable proposal JSON; manual expense
+lines are stored separately. Approved line items live in the approved field
+snapshot. Product links and category allocations reference their line indexes
+and review version, so later approved corrections make old links or allocations
+stale without changing the source description. Monetary values use integer
+minor units.
 
 ### ApprovedPurchase
 
 The user-approved normalized record links to exactly one origin: either a
 receipt with its proposal or a manual expense. It stores approved
 normalized fields, approval mode, actor, time, and review version. It is the
-reporting authority for ReceiptIntelligence.
+reporting authority for ReceiptIntelligence. Archived purchases remain stored
+and are owner-visible when requested; all other roles see active records only.
 
-### Merchant, Category, and NormalizationSuggestion (planned)
+### Category, CategoryMapping, Product, and PurchaseAllocation
 
-Workspace-scoped normalized entities and suggestions. Suggestions never change
-approved data automatically.
+Workspace categories form an optional ProyectoFinanzas-derived hierarchy.
+Suggestions never create categories or mappings automatically; users confirm
+name mappings. Archived or merged categories retain historical IDs. Workspace
+products hold an internal normalized name and optional brand, while approved
+line descriptions remain exact. Selected line allocations calculate from line
+totals, preserve receipt-level tax, and record immutable before/after revisions
+for manual changes. Product linking and allocation mutations are audited and
+idempotent.
 
 ### AuditEvent
 
 Append-only records cover source, intake, duplicate, manual-expense,
-extraction, correction, approval, auto-approval choice, and rejection actions
-with actor, workspace, time, entity reference, and safe metadata. Export events
+extraction, correction, approval, auto-approval choice, rejection, category,
+product, allocation, and approved-record archive actions with actor, workspace,
+time, entity reference, and safe metadata. Export events
 are planned for Step 6.
 
 ## Relationships
@@ -97,7 +108,9 @@ Workspace ──< AuditEvent, ExtractionJobEvent
 
 ReceiptProposal or ManualExpense ──1? ReviewRecord ──< ReviewRevision
 ReviewRecord ──1? ApprovedPurchase
-Planned: Workspace ──< Merchant, Category, NormalizationSuggestion
+ApprovedPurchase ──< PurchaseAllocation >── Category
+ApprovedPurchase ──< PurchaseLineProduct >── Product
+Workspace ──< Category ──< CategoryMapping
 ```
 
 The approved model must remain separate from proposals so reprocessing or a
