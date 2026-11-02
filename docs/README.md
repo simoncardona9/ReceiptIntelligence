@@ -15,6 +15,10 @@ It must be reviewed before implementation starts.
 | [extraction-queue-api.md](extraction-queue-api.md)           | Persistent extraction queue API and lifecycle                          |
 | [canonical-proposal.md](canonical-proposal.md)               | Unapproved normalized proposal and source provenance                   |
 | [review-api.md](review-api.md)                                 | Review corrections, warnings, approval, and rejection                  |
+| [category-api.md](category-api.md)                         | Workspace categories, suggestions, mappings, and retirement          |
+| [product-api.md](product-api.md)                           | Product identities, matching, and approved line links                |
+| [allocation-api.md](allocation-api.md)                     | Approved purchase category allocations and reconciliation            |
+| [approved-record-api.md](approved-record-api.md)           | Approved search, detail, archives, and source visibility              |
 | [data-model.md](data-model.md)                             | Entities, ownership, and provenance                                   |
 | [business-rules.md](business-rules.md)                     | Extraction, review, correction, and financial rules                   |
 | [security-privacy.md](security-privacy.md)                 | Access, retention, privacy, and threat controls                       |

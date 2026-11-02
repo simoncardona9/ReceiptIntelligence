@@ -1,5 +1,15 @@
 # Development Progress
 
+## Current state — Step 5 delivered; Step 3 acceptance limits remain
+
+Slices 5.1–5.4 were implemented and pushed on `step-5-categories-products-records` after the user's full-step authorization. Step 6 is not authorized. The private-corpus OCR accuracy and actual operating-system resource exhaustion checks from Step 3 remain open.
+
+### Step 5 final check — 2026-11-02
+
+- `pnpm check` passed: Prettier, ESLint, TypeScript, 61 TypeScript tests, 13 Python OCR tests, and production build. `docker compose config --quiet` and a repeat `docker compose exec -T web pnpm db:migrate` passed; PostgreSQL and web were healthy and the worker was running.
+- The complete synthetic service set passed in Compose: `pnpm smoke:auth`, `pnpm smoke:intake`, `pnpm smoke:categories`, `pnpm smoke:products`, `pnpm smoke:allocations`, `pnpm smoke:approved`, `pnpm smoke:extraction`, and `pnpm smoke:review`. The five new page routes returned HTTP 200 from the running web service.
+- A visual browser pass was unavailable because the Playwright browser tool reported that Chrome for Testing was not installed. The production builds and route checks cover compilation and server response, while the synthetic smoke suites cover the API behavior. Visual layout and interaction remain unverified in a real browser.
+
 ## Step 5 — Slice 5.4 verification
 
 - Added workspace-scoped approved list/detail and merchant, product, source line, purchase ID, and origin ID search. The detail shows approved fields, line items, product links, allocations, revision link, and authorized source links/removal state. Archived records are hidden by default, owner-visible only when requested, and owner-restorable with retry-safe audit.
@@ -21,12 +31,12 @@
 - Migration `0011_categories.sql` applied and repeated through `docker compose exec -T web pnpm db:migrate`. `pnpm check` passed: formatting, lint, TypeScript, 56 TypeScript tests, 13 Python tests, and production build. The first smoke attempt hit the previously running old production build; after stopping the web service, `docker compose run --rm --no-deps -e NODE_ENV=production web pnpm build` passed and the service was restarted. `docker compose exec -T web pnpm smoke:categories` passed with synthetic owner/editor/viewer/outsider accounts, import hierarchy, retry, conflicting retry, normalized duplicate, remembered mapping, archive authority, and parent protection.
 - The imported hierarchy is a local snapshot. Direct ProyectoFinanzas export remains Step 6 scope.
 
-## Current state — Step 4 delivered; Step 3 acceptance limits remain
+## Prior state — Step 4 delivered; Step 3 acceptance limits remained
 
 Slices 4.1–4.4 were implemented and pushed on `step-4-review-approval` after
 explicit user authorization. They provide source-aligned review, versioned
 correction, warning gates, and audited approval/rejection for receipts and
-manual expenses. Step 5 is not authorized. The Step 3 OCR and worker acceptance
+manual expenses. Step 5 had not yet been authorized. The Step 3 OCR and worker acceptance
 limits below remain open; the synthetic checks do not measure private-corpus
 accuracy or real resource-failure behavior.
 
@@ -60,7 +70,7 @@ accuracy or real resource-failure behavior.
   receipt accuracy and production OCR selection remain open until one is
   available outside Git. `pnpm check` passed after the adapter and record
   updates: format, lint, TypeScript, 55 TypeScript tests, 13 Python OCR tests,
-  and the production build. Step 5 remains unauthorized.
+  and the production build. Step 5 was unauthorized at that time.
 
 ### Step 4 money UI follow-up
 

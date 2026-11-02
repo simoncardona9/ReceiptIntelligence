@@ -2,8 +2,8 @@
 
 This is the planning breakdown for Steps 1–6. These slices are ordered and
 reviewable; authorize a slice individually or a whole named step, then give
-each slice a focused implementation plan before work starts. Slices 1.1–4.4
-are implemented; Slice 5.1 and later slices are not approved.
+each slice a focused implementation plan before work starts. Slices 1.1–5.4
+are implemented; Slice 6.1 and later slices are not approved.
 
 ## Step 1 — Secure foundation
 
@@ -514,6 +514,8 @@ create duplicate approved purchases. **Boundary:** no export.
 
 ### Slice 5.1 — Category catalog
 
+**Status:** Implemented on `step-5-categories-products-records`.
+
 **Outcome:** Users can categorize approved expenses using a customizable
 ProyectoFinanzas-derived hierarchy.
 
@@ -527,6 +529,8 @@ confirmed and remembered; deleting/merging preserves historical references.
 **Dependencies/risk:** 4.4; category compatibility risk.
 
 ### Slice 5.2 — Product catalog
+
+**Status:** Implemented on `step-5-categories-products-records`.
 
 **Outcome:** Users can maintain workspace product identities without changing
 the source description used in exports.
@@ -542,6 +546,8 @@ Version 1. **Boundary:** no price comparison.
 
 ### Slice 5.3 — Line-item and category allocations
 
+**Status:** Implemented on `step-5-categories-products-records`.
+
 **Outcome:** A user can split one receipt into category allocations by selecting
 line items.
 
@@ -555,6 +561,8 @@ exists; tax is never silently distributed. **Boundary:** no export format.
 **Dependencies/risk:** 4.4, 5.1, and 5.2; financial allocation risk.
 
 ### Slice 5.4 — Approved records and search
+
+**Status:** Implemented on `step-5-categories-products-records`.
 
 **Outcome:** Users can find approved records by merchant, product, or receipt ID.
 
@@ -647,6 +655,6 @@ remaining limitations are documented. **Boundary:** no new product features.
 ## Planning status
 
 - Total planned slices: **25**.
-- Approved slices: **16** (1.1–4.4).
-- Implemented slices: **16** (1.1–4.4).
-- Slice 5.1 and later slices remain drafts and are not authorized for implementation.
+- Approved slices: **20** (1.1–5.4).
+- Implemented slices: **20** (1.1–5.4).
+- Slice 6.1 and later slices remain drafts and are not authorized for implementation.
