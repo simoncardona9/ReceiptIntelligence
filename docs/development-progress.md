@@ -1,5 +1,10 @@
 # Development Progress
 
+## Step 5 — Slice 5.3 verification
+
+- Added approved-purchase category allocations with selected line totals, explicit remaining amount, reasoned manual overrides, exact integer reconciliation, and immutable before/after revisions. Optional line tax can be entered explicitly in review; allocation never distributes receipt-level tax. A later approved purchase correction marks earlier allocations stale.
+- Migration `0013_allocations.sql` applied in Compose. `pnpm check` passed: formatting, lint, TypeScript, 61 TypeScript tests, 13 Python tests, and production build. The isolated Compose production build passed and the web service restarted. `docker compose exec -T web pnpm smoke:allocations` passed with synthetic owner/editor/viewer/outsider accounts, a corrected and approved manual expense, stale-version and authorization denial, duplicate-line and missing-reason rejection, retry conflict, exact reconciliation, preserved receipt tax, and a reasoned correction.
+
 ## Step 5 — Slice 5.2 verification
 
 - Added workspace product identities with normalized name and optional brand, exact-description suggestions, explicit confirmation for uncertain brand matches, and links to approved line items that preserve the source description and review version. Owners/editors can create, rename, and link; viewers can read only.

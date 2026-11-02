@@ -590,6 +590,18 @@ export function ReviewEditor({
               }
             />
           </label>
+          <label>
+            {moneyLabel("IVA explícito de línea", draft.currency)}
+            <MoneyInput
+              key={`${review.version}:${lineIds[index]}:taxMinor`}
+              valueMinor={item.taxMinor ?? null}
+              disabled={!canEdit || saving}
+              onChangeMinor={(value) => updateLine(index, { taxMinor: value })}
+              onInvalidChange={(invalid) =>
+                markMoneyInvalid(`line:${lineIds[index]}:taxMinor`, invalid)
+              }
+            />
+          </label>
           {canEdit && (
             <button
               type="button"

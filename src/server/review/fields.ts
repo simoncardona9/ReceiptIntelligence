@@ -24,6 +24,7 @@ export const reviewFieldsSchema = z
             unit: z.string().trim().min(1).max(20).nullable(),
             unitPriceMinor: money.nullable(),
             discountMinor: money.nullable(),
+            taxMinor: money.nullable().optional(),
             lineTotalMinor: money.nullable(),
           })
           .strict(),

@@ -1,0 +1,7 @@
+# Approved purchase allocations (Step 5.3)
+
+`GET /api/workspaces/{workspaceId}/allocations?purchaseId=uuid` returns current allocations, review version, line items, receipt total and tax, and a stale flag if the approved purchase changed after allocation. Every member may read.
+
+`POST` to the same path requires same origin, owner/editor role, a UUID `Idempotency-Key`, and a body with `purchaseId`, `expectedReviewVersion`, `primaryCategoryId`, and `groups`. Each group contains an active `categoryId`, one or more distinct `lineIndexes`, and optional `overrideAmountMinor` plus `reason`. Amounts are integer minor units; the UI accepts decimal currency amounts. The server calculates selected amounts from line totals and assigns the remaining purchase total to the primary category. Selected lines cannot overlap or lack totals. A changed selected amount needs a reason. Groups may not exceed the purchase total. The resulting amounts always reconcile to the approved total. No tax is distributed; receipt tax remains in the approved fields. A line tax is stored only when explicitly entered in review.
+
+Replacing allocations writes an immutable before/after revision and retry record in the same transaction. A changed-payload key reuse conflicts. Historical category references remain after category retirement. A later approved purchase correction marks allocations stale until they are reviewed again.
