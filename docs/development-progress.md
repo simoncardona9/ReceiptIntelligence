@@ -1,5 +1,10 @@
 # Development Progress
 
+## Step 5 — Slice 5.2 verification
+
+- Added workspace product identities with normalized name and optional brand, exact-description suggestions, explicit confirmation for uncertain brand matches, and links to approved line items that preserve the source description and review version. Owners/editors can create, rename, and link; viewers can read only.
+- Migration `0012_products.sql` applied with `docker compose exec -T web pnpm db:migrate`. `pnpm check` passed: formatting, lint, TypeScript, 58 TypeScript tests, 13 Python tests, and production build. A production build in an isolated Compose run passed after stopping the previous web server; the service was restarted. `docker compose exec -T web pnpm smoke:products` passed for synthetic owner/editor/viewer accounts, approved manual expense, exact match, retry conflict, viewer denial, stale version, unchanged source description, brand confirmation requirement, and confirmed brand link. The first smoke attempt used a malformed lifecycle request in the test and passed after correcting the request body.
+
 ## Step 5 — Slice 5.1 verification
 
 - Created `step-5-categories-products-records` from merged `main`. Added a workspace-local hierarchical expense category catalog adapted from ProyectoFinanzas' nine expense seed categories, explicit import, category creation, suggestions, confirmed mappings, and owner-controlled archive/merge. Historical category IDs remain available after retirement.

@@ -22,6 +22,7 @@
     "smoke:queue-state": "node --import=tsx scripts/smoke-queue-state.ts",
     "smoke:review": "node --import=tsx scripts/smoke-review.ts",
     "smoke:categories": "node --import=tsx scripts/smoke-categories.ts",
+    "smoke:products": "node --import=tsx scripts/smoke-products.ts",
     "lint": "eslint .",
     "format": "prettier --write \"src/**/*.{ts,tsx}\" \"scripts/**/*.ts\" \"fixtures/**/*.json\" \"*.{json,mjs,mts,yml}\" compose.yaml README.md",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"scripts/**/*.ts\" \"fixtures/**/*.json\" \"*.{json,mjs,mts,yml}\" compose.yaml README.md",
