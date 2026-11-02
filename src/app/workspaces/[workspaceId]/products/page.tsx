@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { Product, ProductMatch } from "@/server/catalog/product-service";
 
@@ -13,12 +13,13 @@ type Line = {
 };
 export default function ProductsPage() {
   const { workspaceId } = useParams<{ workspaceId: string }>();
+  const search = useSearchParams();
   const base = `/api/workspaces/${workspaceId}/products`;
   const [products, setProducts] = useState<Product[]>([]);
   const [role, setRole] = useState("viewer");
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
-  const [purchaseId, setPurchaseId] = useState("");
+  const [purchaseId, setPurchaseId] = useState(search.get("purchaseId") ?? "");
   const [lines, setLines] = useState<Line[]>([]);
   const [version, setVersion] = useState(0);
   const [matches, setMatches] = useState<Record<number, ProductMatch[]>>({});

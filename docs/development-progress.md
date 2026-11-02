@@ -1,5 +1,10 @@
 # Development Progress
 
+## Step 5 — Slice 5.4 verification
+
+- Added workspace-scoped approved list/detail and merchant, product, source line, purchase ID, and origin ID search. The detail shows approved fields, line items, product links, allocations, revision link, and authorized source links/removal state. Archived records are hidden by default, owner-visible only when requested, and owner-restorable with retry-safe audit.
+- Migration `0014_approved_records.sql` applied in Compose. `pnpm check` passed: formatting, lint, TypeScript, 61 TypeScript tests, 13 Python tests, and production build. Isolated Compose production build passed and the web service restarted. `pnpm smoke:approved` passed for synthetic workspace scope, merchant/product/ID search, viewer detail, editor archive denial, owner archive/retry/conflict/restore, and archived visibility through direct manual review and inbox. `pnpm smoke:review` passed after adding approved receipt detail, viewer source download, then archive/restore checks across direct review, inbox, and source paths.
+
 ## Step 5 — Slice 5.3 verification
 
 - Added approved-purchase category allocations with selected line totals, explicit remaining amount, reasoned manual overrides, exact integer reconciliation, and immutable before/after revisions. Optional line tax can be entered explicitly in review; allocation never distributes receipt-level tax. A later approved purchase correction marks earlier allocations stale.

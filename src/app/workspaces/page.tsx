@@ -263,6 +263,10 @@ export default function WorkspacesPage() {
                 <Link href={`/workspaces/${workspace.id}/allocations`}>
                   Distribuciones
                 </Link>
+                {" · "}
+                <Link href={`/workspaces/${workspace.id}/approved`}>
+                  Compras aprobadas
+                </Link>
               </p>
               {workspace.role !== "viewer" && (
                 <p>

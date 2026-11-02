@@ -24,6 +24,15 @@ export class PostgresProposalRepository {
       [workspaceId, actorUserId],
     );
     requireWorkspacePermission(membership.rows[0]?.role ?? null, "read");
+    if (membership.rows[0]?.role !== "owner") {
+      const archived = await this.pool.query<{ hidden: boolean }>(
+        `SELECT EXISTS (SELECT 1 FROM approved_purchases WHERE workspace_id = $1
+         AND origin = 'receipt' AND origin_id = $2 AND archived_at IS NOT NULL) AS hidden`,
+        [workspaceId, receiptId],
+      );
+      if (archived.rows[0]?.hidden)
+        throw new DomainError("PROPOSAL_NOT_FOUND", 404, "Proposal not found.");
+    }
     const result = await this.pool.query<{
       id: string;
       receiptId: string;

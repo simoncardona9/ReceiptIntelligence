@@ -450,6 +450,71 @@ async function run() {
   expected(receiptDecision.status, 200, "receipt approve");
   if ((receiptDecision.data.review as ReviewRecord).status !== "approved")
     throw new Error("receipt approval missing");
+  const receiptPurchaseId = (receiptDecision.data.review as ReviewRecord)
+    .approvedPurchaseId;
+  const receiptDetail = await api(
+    `${root}/approved-records/${receiptPurchaseId}`,
+    "GET",
+    viewer,
+  );
+  expected(receiptDetail.status, 200, "approved receipt detail");
+  if (
+    !(receiptDetail.data.record as { sources: { id: string }[] }).sources.some(
+      (source) => source.id === sourceId,
+    )
+  )
+    throw new Error("approved detail lost source access");
+  const viewerSource = await fetch(
+    new URL(`${root}/sources/${sourceId}`, base),
+    { headers: { Cookie: viewer } },
+  );
+  expected(viewerSource.status, 200, "viewer approved source download");
+  const receiptRecordPath = `${root}/approved-records/${receiptPurchaseId}`;
+  expected(
+    (
+      await api(
+        receiptRecordPath,
+        "POST",
+        owner,
+        { action: "archive", expectedArchived: false },
+        randomUUID(),
+      )
+    ).status,
+    200,
+    "archive receipt",
+  );
+  expected(
+    (await api(receiptPath, "GET", viewer)).status,
+    404,
+    "viewer archived review",
+  );
+  const archivedSource = await fetch(
+    new URL(`${root}/sources/${sourceId}`, base),
+    {
+      headers: { Cookie: viewer },
+    },
+  );
+  expected(archivedSource.status, 404, "viewer archived source");
+  const archivedInbox = await api(`${root}/inbox`, "GET", viewer);
+  if (
+    (archivedInbox.data.entries as { id: string }[]).some(
+      (entry) => entry.id === receiptId,
+    )
+  )
+    throw new Error("viewer inbox exposed archived receipt");
+  expected(
+    (
+      await api(
+        receiptRecordPath,
+        "POST",
+        owner,
+        { action: "restore", expectedArchived: true },
+        randomUUID(),
+      )
+    ).status,
+    200,
+    "restore receipt",
+  );
   const rejectManual = await api(
     `${root}/manual-expenses`,
     "POST",

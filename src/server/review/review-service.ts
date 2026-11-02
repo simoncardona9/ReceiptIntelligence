@@ -74,6 +74,24 @@ export class ReviewService {
     requireWorkspacePermission(result.rows[0]?.role ?? null, permission);
   }
 
+  private async assertVisible(
+    client: PoolClient,
+    workspaceId: string,
+    actorUserId: string,
+    origin: ReviewOrigin,
+    originId: string,
+  ) {
+    const result = await client.query<{ hidden: boolean }>(
+      `SELECT EXISTS (SELECT 1 FROM approved_purchases p
+       JOIN memberships m ON m.workspace_id = p.workspace_id AND m.user_id = $2
+       WHERE p.workspace_id = $1 AND p.origin = $3 AND p.origin_id = $4
+       AND p.archived_at IS NOT NULL AND m.role <> 'owner') AS hidden`,
+      [workspaceId, actorUserId, origin, originId],
+    );
+    if (result.rows[0]?.hidden)
+      throw new DomainError("REVIEW_NOT_FOUND", 404, "Review not found.");
+  }
+
   private async stored(
     client: PoolClient,
     workspaceId: string,
@@ -257,6 +275,13 @@ export class ReviewService {
     const client = await this.pool.connect();
     try {
       await this.authorize(client, workspaceId, actorUserId, "read");
+      await this.assertVisible(
+        client,
+        workspaceId,
+        actorUserId,
+        origin,
+        originId,
+      );
       return await this.readWithClient(client, workspaceId, origin, originId);
     } finally {
       client.release();
@@ -340,6 +365,13 @@ export class ReviewService {
         input.workspaceId,
         input.actorUserId,
         "edit",
+      );
+      await this.assertVisible(
+        client,
+        input.workspaceId,
+        input.actorUserId,
+        input.origin,
+        input.originId,
       );
       await client.query(
         "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
@@ -542,6 +574,13 @@ export class ReviewService {
       );
       const role = membership.rows[0]?.role ?? null;
       requireWorkspacePermission(role, "edit");
+      await this.assertVisible(
+        client,
+        input.workspaceId,
+        input.actorUserId,
+        input.origin,
+        input.originId,
+      );
       if (input.decision.action === "auto" && role !== "owner")
         throw new DomainError(
           "OWNER_REQUIRED",
