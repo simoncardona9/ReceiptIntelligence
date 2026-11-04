@@ -36,10 +36,11 @@ groups TSV words into lines. PDF pages are rasterized locally with `pdftoppm`.
 PaddleOCR uses its local `PaddleOCR.predict` API and requires both
 `OCR_PADDLE_DETECTION_MODEL_DIR` and `OCR_PADDLE_RECOGNITION_MODEL_DIR` to point
 to installed local models. CPU is the default; `device=gpu` is optional for
-PaddleOCR. The host has no PaddleOCR models or Tesseract binary; the Compose
-worker installs local Tesseract Spanish data. Paddle mapping and GPU selection
-are checked with synthetic model output; real Paddle performance remains
-unmeasured.
+PaddleOCR. The Compose worker installs both engines and Paddle models at image
+build time. Paddle CPU is the default; set `OCR_ENGINE=tesseract` for the
+fallback. Photo preprocessing crops and enlarges a light receipt against a
+darker background when it can detect one reliably, then maps OCR boxes back to
+source coordinates. Otherwise it processes the original image.
 
 For a local benchmark after installing an engine, generate the synthetic
 fixtures described in [ocr-evaluation.md](ocr-evaluation.md), then run:

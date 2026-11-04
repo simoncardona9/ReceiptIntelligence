@@ -39,7 +39,7 @@ describe("application configuration", () => {
       databaseUrl: "postgresql://receipt:synthetic@localhost:5432/receipts",
       port: 4321,
       sourceStorageDirectory: "./.receipt-storage/private",
-      ocrEngine: "tesseract",
+      ocrEngine: "paddle",
       ocrDevice: "cpu",
       bootstrapOwner: null,
     });

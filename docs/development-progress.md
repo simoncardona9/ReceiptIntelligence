@@ -2,6 +2,33 @@
 
 ## Current state — Step 5 delivered; Step 3 acceptance limits remain
 
+### Step 3 OCR accuracy follow-up — 2026-11-04
+
+- Created `step-3-ocr-accuracy-followup` from merged `main`. The worker now
+  detects and enlarges a photographed receipt against a darker background,
+  while returning evidence boxes in original image coordinates. The canonical
+  proposal associates split text and price columns, including weighted rows,
+  and retains product descriptions when a price is unreadable. Receipt dates
+  after the totals section no longer conflict with the purchase date.
+- Switched the Compose worker default to PaddleOCR CPU, with pinned Python
+  packages and official model weights baked into a separate worker image.
+  Tesseract remains available by setting `OCR_ENGINE=tesseract`.
+- On the user-supplied private photo, the built Compose worker returned 11
+  product rows, 10 proposed prices, and the printed total of 2203.19 in about
+  14 seconds including container startup. One product price was unreadable and
+  another was misread, so both require manual review. No receipt image or raw
+  OCR output was added to the repository. The receipt does not explicitly
+  name a currency, so currency is still left blank.
+- Synthetic tests cover crop/source-coordinate mapping and split item rows.
+  `pnpm check` passed: format, lint, TypeScript, 62 TypeScript tests, 14 Python
+  OCR tests, and production build. `docker compose config --quiet`, the worker
+  image build, a real Paddle run in that image, and synthetic Compose
+  `pnpm smoke:extraction` and `pnpm smoke:review` passed. The first extraction
+  smoke attempt ran while the web service was still starting; it passed after
+  the service reported ready.
+  Broader private-corpus accuracy and actual operating-system resource
+  exhaustion checks remain open.
+
 Slices 5.1–5.4 were implemented and pushed on `step-5-categories-products-records` after the user's full-step authorization. Step 6 is not authorized. The private-corpus OCR accuracy and actual operating-system resource exhaustion checks from Step 3 remain open.
 
 ### Step 5 final check — 2026-11-02

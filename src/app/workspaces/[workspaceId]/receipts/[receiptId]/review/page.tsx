@@ -33,6 +33,8 @@ const warningLabels: Record<string, string> = {
   MISSING_TAX_MINOR: "IVA",
   MISSING_PAYMENT_METHOD: "medio de pago",
   LINE_ITEMS_UNAVAILABLE: "ítems",
+  LINE_ITEMS_INCOMPLETE: "precios de ítems pendientes",
+  LINE_TOTAL_MISMATCH: "suma de ítems distinta del total",
   FIELD_CONFLICT: "valores en conflicto",
 };
 function displayValue(name: string, value: string | number): string {

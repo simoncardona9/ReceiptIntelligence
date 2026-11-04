@@ -31,8 +31,7 @@ prevents a cancelled/stopped/stale process from storing evidence. Successful
 jobs store only provider-neutral page evidence; no proposal is approved or
 exported by this queue.
 
-The Compose development worker has local Tesseract Spanish language data,
-Python Pillow, and Poppler for PDF rasterization. PaddleOCR remains optional:
-it needs a compatible Python environment and explicitly installed local model
-directories. Set `OCR_ENGINE=paddle`, `OCR_DEVICE=cpu` or `gpu`, and local model
-paths in the worker environment when that setup is available.
+The Compose development worker includes PaddleOCR CPU, its local models,
+Tesseract Spanish data, Pillow, and Poppler for PDF rasterization. PaddleOCR is
+the default. Set `OCR_ENGINE=tesseract` to use the fallback. GPU use still
+requires a compatible Paddle runtime and hardware.

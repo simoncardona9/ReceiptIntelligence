@@ -111,4 +111,44 @@ describe("Spanish canonical normalization", () => {
     );
     expect(JSON.stringify(proposal)).not.toContain("4111");
   });
+
+  it("associates split receipt columns and preserves products with unreadable prices", () => {
+    const rows: [string, number, number][] = [
+      ["MERCADO DEL BARRIO", 0.1, 0.1],
+      ["04/11/2026", 0.1, 0.14],
+      ["CONSUMO FINAL", 0.1, 0.2],
+      ["ARROZ 1 KG", 0.1, 0.25],
+      ["89,00", 0.75, 0.252],
+      ["CARNE KG", 0.1, 0.29],
+      ["0,500Kg X", 0.25, 0.311],
+      ["420,00", 0.5, 0.312],
+      ["210,00", 0.75, 0.313],
+      ["LECHE 1 L", 0.1, 0.35],
+      ["6?,00", 0.75, 0.351],
+      ["TOTAL", 0.1, 0.4],
+      ["299,00", 0.75, 0.402],
+      ["VENCIMIENTO 21/06/2028", 0.1, 0.8],
+    ];
+    const input = evidence(rows.map(([text]) => text));
+    input.pages[0].regions = rows.map(([text, x, y], index) => ({
+      id: String(index),
+      text,
+      confidence: 0.9,
+      box: [x, y, Math.min(x + 0.12, 0.99), y + 0.01],
+    }));
+    const proposal = normalizeExtraction(input);
+    expect(proposal.fields.totalMinor?.normalized).toBe(29900);
+    expect(proposal.fields.date?.normalized).toBe("2026-11-04");
+    expect(
+      proposal.conflicts.some((conflict) => conflict.field === "date"),
+    ).toBe(false);
+    expect(proposal.lineItems).toHaveLength(3);
+    expect(
+      proposal.lineItems.map((line) => line.lineTotalMinor?.normalized),
+    ).toEqual([8900, 21000, undefined]);
+    expect(proposal.lineItems[1].quantity?.normalized).toBe("0.500");
+    expect(proposal.lineItems[1].unit).toBe("KG");
+    expect(proposal.lineItems[1].unitPriceMinor?.normalized).toBe(42000);
+    expect(proposal.warnings).toContain("LINE_ITEMS_INCOMPLETE");
+  });
 });

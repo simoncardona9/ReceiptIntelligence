@@ -33,7 +33,7 @@ services:
       BOOTSTRAP_OWNER_EMAIL: ${BOOTSTRAP_OWNER_EMAIL:-}
       BOOTSTRAP_OWNER_PASSWORD: ${BOOTSTRAP_OWNER_PASSWORD:-}
       BOOTSTRAP_WORKSPACE_NAME: ${BOOTSTRAP_WORKSPACE_NAME:-Casa}
-      OCR_ENGINE: ${OCR_ENGINE:-tesseract}
+      OCR_ENGINE: ${OCR_ENGINE:-paddle}
       OCR_DEVICE: ${OCR_DEVICE:-cpu}
     depends_on:
       db:
@@ -61,7 +61,7 @@ services:
   worker:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.ocr
     command:
       [
         "sh",
@@ -72,7 +72,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:?Copy .env.example to .env and set local development values}
       NODE_ENV: development
       SOURCE_STORAGE_DIRECTORY: /var/lib/receipt-sources
-      OCR_ENGINE: ${OCR_ENGINE:-tesseract}
+      OCR_ENGINE: ${OCR_ENGINE:-paddle}
       OCR_DEVICE: ${OCR_DEVICE:-cpu}
     depends_on:
       db:
