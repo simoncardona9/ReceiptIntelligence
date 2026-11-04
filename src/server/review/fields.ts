@@ -40,7 +40,7 @@ export function fieldsFromProposal(proposal: Proposal): ReviewFields {
     merchant: f.merchant?.normalized ?? null,
     date: f.date?.normalized ?? null,
     totalMinor: f.totalMinor?.normalized ?? null,
-    currency: f.currency?.normalized ?? null,
+    currency: f.currency?.normalized ?? "UYU",
     subtotalMinor: f.subtotalMinor?.normalized ?? null,
     discountMinor: null,
     taxMinor: f.taxMinor?.normalized ?? null,

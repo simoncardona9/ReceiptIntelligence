@@ -12,11 +12,18 @@ export type Candidate<T> = {
   confidence: number | null;
   evidence: Evidence;
 };
+export type DefaultCurrencyCandidate = {
+  normalized: "UYU";
+  origin: "default";
+  exact: null;
+  confidence: null;
+  evidence: null;
+};
 export type ProposalFields = {
   merchant: Candidate<string> | null;
   date: Candidate<string> | null;
   totalMinor: Candidate<number> | null;
-  currency: Candidate<"UYU" | "USD"> | null;
+  currency: Candidate<"UYU" | "USD"> | DefaultCurrencyCandidate | null;
   subtotalMinor: Candidate<number> | null;
   taxMinor: Candidate<number> | null;
   paymentMethod: Candidate<string> | null;
@@ -412,7 +419,13 @@ export function normalizeExtraction(result: ExtractionResult): Proposal {
     merchant: options.merchant[0] ?? null,
     date: options.date[0] ?? null,
     totalMinor: options.totalMinor[0] ?? null,
-    currency: options.currency[0] ?? null,
+    currency: options.currency[0] ?? {
+      normalized: "UYU",
+      origin: "default",
+      exact: null,
+      confidence: null,
+      evidence: null,
+    },
     subtotalMinor: options.subtotalMinor[0] ?? null,
     taxMinor: options.taxMinor[0] ?? null,
     paymentMethod: options.paymentMethod[0] ?? null,

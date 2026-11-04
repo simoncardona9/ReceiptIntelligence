@@ -2,6 +2,18 @@
 
 ## Current state — Step 5 delivered; Step 3 acceptance limits remain
 
+### Step 3 currency default follow-up — 2026-11-04
+
+- Per the user's decision, UYU is the default currency when a receipt has no
+  explicit currency token. Explicit USD/UYU OCR evidence takes precedence.
+  Defaulted proposals carry `origin: "default"` and null OCR evidence, and the
+  review page identifies the default. Older stored proposals without currency
+  also open in review with UYU; their immutable OCR record is unchanged.
+- Manual expense and receipt intake forms already default to UYU.
+- `pnpm check` passed: formatting, lint, TypeScript, 64 TypeScript tests, 14
+  Python OCR tests, and production build. Synthetic Compose extraction and
+  review smoke suites passed.
+
 ### Step 3 OCR accuracy follow-up — 2026-11-04
 
 - Created `step-3-ocr-accuracy-followup` from merged `main`. The worker now
@@ -18,7 +30,7 @@
   14 seconds including container startup. One product price was unreadable and
   another was misread, so both require manual review. No receipt image or raw
   OCR output was added to the repository. The receipt does not explicitly
-  name a currency, so currency is still left blank.
+  name a currency. A later user decision now defaults such proposals to UYU.
 - Synthetic tests cover crop/source-coordinate mapping and split item rows.
   `pnpm check` passed: format, lint, TypeScript, 62 TypeScript tests, 14 Python
   OCR tests, and production build. `docker compose config --quiet`, the worker

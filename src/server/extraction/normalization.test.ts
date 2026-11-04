@@ -101,6 +101,28 @@ describe("Spanish canonical normalization", () => {
     expect(proposal.warnings).toContain("LINE_ITEMS_UNAVAILABLE");
   });
 
+  it("defaults an unspecified currency to UYU without inventing OCR evidence", () => {
+    const proposal = normalizeExtraction(
+      evidence(["MERCADO DEL BARRIO", "TOTAL $ 299,00"]),
+    );
+    expect(proposal.fields.currency).toEqual({
+      normalized: "UYU",
+      origin: "default",
+      exact: null,
+      confidence: null,
+      evidence: null,
+    });
+    expect(proposal.warnings).not.toContain("MISSING_CURRENCY");
+  });
+
+  it("uses an explicit USD token instead of the UYU default", () => {
+    const proposal = normalizeExtraction(
+      evidence(["MERCADO DEL BARRIO", "TOTAL USD 10,00"]),
+    );
+    expect(proposal.fields.currency?.normalized).toBe("USD");
+    expect(proposal.fields.currency?.evidence?.regionId).toBe("1");
+  });
+
   it("does not copy a long card number into a proposal", () => {
     const proposal = normalizeExtraction(
       evidence([

@@ -37,6 +37,7 @@ describe("review fields", () => {
     const fields = fieldsFromProposal(proposal);
     expect(fields.merchant).toBe("Tienda");
     expect(fields.totalMinor).toBe(1000);
+    expect(fields.currency).toBe("UYU");
     expect(proposal.fields.totalMinor?.exact).toBe("TOTAL 10,00");
     expect(fields.taxUnknown).toBe(false);
     expect(reviewFieldsSchema.safeParse(fields).success).toBe(true);

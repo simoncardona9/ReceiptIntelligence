@@ -196,26 +196,35 @@ export default function SourceReviewPage() {
                             <span className="proposal-value">
                               {displayValue(name, value.normalized)}
                             </span>
-                            <span className="proposal-meta">
-                              Texto original: {value.exact} · Confianza:{" "}
-                              {value.confidence === null
-                                ? "sin dato"
-                                : `${Math.round(value.confidence * 100)}%`}
-                            </span>
-                            <span className="proposal-source">
-                              <button
-                                type="button"
-                                onClick={() => showEvidence(value.evidence)}
-                              >
-                                Ver fuente{" "}
-                                {receipt.sourceIds.indexOf(
-                                  value.evidence.sourceId,
-                                ) + 1}
-                                , página {value.evidence.page + 1}
-                              </button>
-                              {value.evidence.box === null &&
-                                " · Región no disponible"}
-                            </span>
+                            {value.evidence ? (
+                              <>
+                                <span className="proposal-meta">
+                                  Texto original: {value.exact} · Confianza:{" "}
+                                  {value.confidence === null
+                                    ? "sin dato"
+                                    : `${Math.round(value.confidence * 100)}%`}
+                                </span>
+                                <span className="proposal-source">
+                                  <button
+                                    type="button"
+                                    onClick={() => showEvidence(value.evidence)}
+                                  >
+                                    Ver fuente{" "}
+                                    {receipt.sourceIds.indexOf(
+                                      value.evidence.sourceId,
+                                    ) + 1}
+                                    , página {value.evidence.page + 1}
+                                  </button>
+                                  {value.evidence.box === null &&
+                                    " · Región no disponible"}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="proposal-meta">
+                                Moneda predeterminada: pesos uruguayos. Sin
+                                evidencia OCR de moneda.
+                              </span>
+                            )}
                           </>
                         ) : (
                           "Sin dato"
