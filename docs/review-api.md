@@ -55,9 +55,12 @@ regions. All amounts remain editable through versioned corrections.
 The editor suggests net subtotal as total minus IVA plus discount after a user
 enters or confirms IVA. Applying the suggestion updates only the draft; saving
 it creates the normal auditable correction.
-The proposal GET response includes `taxAnalysis` from the stored OCR evidence
-for older proposals, so existing saved reviews can inspect IVA rows without
-reprocessing or replacing their corrections.
+The proposal GET response includes `taxAnalysis` and `lineAnalysis` from the
+stored OCR evidence for older proposals, so existing saved reviews can inspect
+IVA rows and item prices without reprocessing or replacing their corrections.
+The review editor separates optional line discount and per-item IVA, which
+should be entered only when printed for that item. Quantity times unit price
+must reconcile with line total before approval whenever both values are set.
 
 ## Approval lifecycle
 

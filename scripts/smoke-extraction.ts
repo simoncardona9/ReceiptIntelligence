@@ -264,6 +264,8 @@ async function run() {
   expect(proposalResponse.status, 200, "viewer proposal read");
   if (!Array.isArray(proposalResponse.data.taxAnalysis))
     throw new Error("proposal response omitted tax analysis");
+  if (!Array.isArray(proposalResponse.data.lineAnalysis))
+    throw new Error("proposal response omitted line analysis");
   const proposal = (
     proposalResponse.data.stored as {
       proposal: {

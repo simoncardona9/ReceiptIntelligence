@@ -30,6 +30,7 @@ export async function GET(
       receiptId,
     );
     let taxAnalysis: Proposal["taxLines"] = stored.proposal.taxLines;
+    let lineAnalysis = stored.proposal.lineItems;
     if (!taxAnalysis) {
       const evidence = await pool.query<{
         engine: ExtractionResult["engine"];
@@ -40,15 +41,18 @@ export async function GET(
          WHERE workspace_id = $1 AND receipt_id = $2 AND job_id = $3`,
         [workspaceId, receiptId, stored.jobId],
       );
-      if (evidence.rows[0])
-        taxAnalysis = normalizeExtraction({
+      if (evidence.rows[0]) {
+        const analysis = normalizeExtraction({
           version: 1,
           ...evidence.rows[0],
           diagnostics: { durationMs: 0 },
-        }).taxLines;
+        });
+        taxAnalysis = analysis.taxLines;
+        lineAnalysis = analysis.lineItems;
+      }
     }
     return Response.json(
-      { stored, taxAnalysis: taxAnalysis ?? [] },
+      { stored, taxAnalysis: taxAnalysis ?? [], lineAnalysis },
       { headers: { "Cache-Control": "no-store" } },
     );
   });

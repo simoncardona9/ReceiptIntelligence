@@ -20,7 +20,7 @@ const fieldLabels: Record<string, string> = {
   date: "Fecha",
   totalMinor: "Total",
   currency: "Moneda",
-  subtotalMinor: "Subtotal",
+  subtotalMinor: "Neto antes de IVA",
   taxMinor: "IVA",
   paymentMethod: "Medio de pago",
 };
@@ -66,6 +66,7 @@ export default function SourceReviewPage() {
   const [taxAnalysis, setTaxAnalysis] = useState<
     NonNullable<Proposal["taxLines"]>
   >([]);
+  const [lineAnalysis, setLineAnalysis] = useState<Proposal["lineItems"]>([]);
   const [selectedEvidence, setSelectedEvidence] = useState<Evidence | null>(
     null,
   );
@@ -91,9 +92,11 @@ export default function SourceReviewPage() {
         const proposalBody = (await proposalResponse.json()) as {
           stored: { proposal: Proposal };
           taxAnalysis: NonNullable<Proposal["taxLines"]>;
+          lineAnalysis: Proposal["lineItems"];
         };
         setProposal(proposalBody.stored.proposal);
         setTaxAnalysis(proposalBody.taxAnalysis);
+        setLineAnalysis(proposalBody.lineAnalysis);
       }
       const queueResponse = await fetch(
         `/api/workspaces/${workspaceId}/extraction-jobs`,
@@ -244,6 +247,11 @@ export default function SourceReviewPage() {
                 {taxAnalysis.length > 0 && (
                   <>
                     <h3>IVA leído del comprobante</h3>
+                    <p>
+                      Importes OCR provisionales: revisá cada fila en la imagen.
+                      El sistema solo calcula el IVA total cuando las filas
+                      concilian con el total del ticket.
+                    </p>
                     <ul>
                       {taxAnalysis.map((line, lineIndex) => (
                         <li
@@ -279,15 +287,29 @@ export default function SourceReviewPage() {
                   </>
                 )}
                 <h3>Ítems detectados</h3>
-                {proposal.lineItems.length ? (
+                <p>
+                  Lectura del OCR; las correcciones guardadas aparecen abajo.
+                </p>
+                {lineAnalysis.length ? (
                   <ul>
-                    {proposal.lineItems.map((item, itemIndex) => (
+                    {lineAnalysis.map((item, itemIndex) => (
                       <li
                         key={`${item.description.evidence.regionId}-${itemIndex}`}
                       >
                         {item.description.exact} ·{" "}
                         {item.quantity?.normalized ?? "cantidad sin dato"}{" "}
-                        {item.unit ?? ""} · Total{" "}
+                        {item.unit ?? ""}{" "}
+                        {item.quantity && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              showEvidence(item.quantity!.evidence)
+                            }
+                          >
+                            Ver cantidad en fuente
+                          </button>
+                        )}{" "}
+                        · Total{" "}
                         {item.lineTotalMinor
                           ? displayValue(
                               "lineTotalMinor",
@@ -297,12 +319,31 @@ export default function SourceReviewPage() {
                         {item.unitPriceMinor && (
                           <>
                             {" "}
-                            · Precio unitario{" "}
+                            · Precio{" "}
+                            {item.unit === "KG" ? "por kg" : "por unidad"}{" "}
                             {displayValue(
                               "unitPriceMinor",
                               item.unitPriceMinor.normalized,
                             )}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                showEvidence(item.unitPriceMinor!.evidence)
+                              }
+                            >
+                              Ver precio en fuente
+                            </button>
                           </>
+                        )}
+                        {item.lineTotalMinor && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              showEvidence(item.lineTotalMinor!.evidence)
+                            }
+                          >
+                            Ver total en fuente
+                          </button>
                         )}
                         {item.discountMinor && (
                           <>

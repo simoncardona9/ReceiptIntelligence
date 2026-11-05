@@ -32,9 +32,12 @@ sum exactly to the receipt total. Calculated candidates have
 `origin: "calculated"`, null OCR text/evidence, and `sourceEvidence` links to
 the contributing OCR regions. Incomplete or inconsistent rows leave the
 receipt-level tax unfilled and produce `TAX_BREAKDOWN_INCOMPLETE` for review.
-The proposal read API also returns `taxAnalysis` derived from stored OCR evidence
-for older immutable proposals. This read-only analysis leaves saved corrections
-and the original proposal unchanged.
+The proposal read API also returns `taxAnalysis` and `lineAnalysis` derived
+from stored OCR evidence for older immutable proposals. This read-only analysis
+leaves saved corrections and the original proposal unchanged. Unit prices are
+retained only when a separate OCR price and quantity reproduce the printed
+line total after rounding. A single-decimal OCR price can be used when this
+arithmetic corroborates it; tax-table amounts still require two decimals.
 
 `proposal.conflicts` preserves alternative candidates with different
 normalized values. `proposal.warnings` lists missing fields, unavailable line

@@ -107,6 +107,33 @@ describe("financial review validation", () => {
       confirmedFields: [],
     });
     expect(matching.reconciliation.itemStatus).toBe("match");
+    const priced = evaluateReview({
+      current: {
+        ...fields,
+        lineItems: [
+          { ...item("Arroz", 700), quantity: "2", unitPriceMinor: 350 },
+          { ...item("Carne", 500), quantity: "0.500", unitPriceMinor: 1000 },
+        ],
+      },
+      original: manual,
+      proposal: null,
+      confirmedFields: [],
+    });
+    expect(priced.reconciliation.unitPriceMismatchLines).toEqual([]);
+    const wrongUnitPrice = evaluateReview({
+      current: {
+        ...fields,
+        lineItems: [
+          item("Arroz", 700),
+          { ...item("Carne", 500), quantity: "0.500", unitPriceMinor: 900 },
+        ],
+      },
+      original: manual,
+      proposal: null,
+      confirmedFields: [],
+    });
+    expect(wrongUnitPrice.reconciliation.unitPriceMismatchLines).toEqual([2]);
+    expect(codes(wrongUnitPrice)).toContain("LINE_UNIT_PRICE_MISMATCH");
     const mismatch = evaluateReview({
       current: {
         ...fields,

@@ -19,6 +19,7 @@ export type ReviewValidation = {
     itemStatus: "match" | "mismatch" | "incomplete" | "no_items";
     netPlusTaxMinor: number | null;
     taxStatus: "match" | "mismatch" | "incomplete";
+    unitPriceMismatchLines: number[];
   };
 };
 
@@ -119,6 +120,30 @@ export function evaluateReview(input: {
           : "mismatch";
   if (itemStatus === "mismatch")
     add("LINE_TOTAL_MISMATCH", "financial", true, true);
+  const unitPriceMismatchLines = current.lineItems.flatMap((line, index) => {
+    if (
+      line.unitPriceMinor === null ||
+      line.lineTotalMinor === null ||
+      line.quantity === null
+    )
+      return [];
+    const quantity = line.quantity.match(/^(\d+)(?:\.(\d{1,3}))?$/);
+    if (!quantity) return [];
+    const milli =
+      BigInt(quantity[1]) * BigInt(1000) +
+      BigInt((quantity[2] ?? "").padEnd(3, "0"));
+    const expected =
+      (BigInt(line.unitPriceMinor) * milli + BigInt(500)) / BigInt(1000);
+    const discount = BigInt(line.discountMinor ?? 0);
+    const total = BigInt(line.lineTotalMinor);
+    return expected === total ||
+      expected - discount === total ||
+      expected + BigInt(line.taxMinor ?? 0) - discount === total
+      ? []
+      : [index + 1];
+  });
+  if (unitPriceMismatchLines.length)
+    add("LINE_UNIT_PRICE_MISMATCH", "financial", true, true);
   const netPlusTax =
     current.subtotalMinor !== null &&
     current.taxMinor !== null &&
@@ -146,6 +171,7 @@ export function evaluateReview(input: {
           : netPlusTax === BigInt(current.totalMinor)
             ? "match"
             : "mismatch",
+      unitPriceMismatchLines,
     },
   };
 }

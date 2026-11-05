@@ -143,7 +143,7 @@ describe("Spanish canonical normalization", () => {
       ["89,00", 0.75, 0.252],
       ["CARNE KG", 0.1, 0.29],
       ["0,500Kg X", 0.25, 0.311],
-      ["420,00", 0.5, 0.312],
+      ["420,0", 0.5, 0.312],
       ["210,00", 0.75, 0.313],
       ["LECHE 1 L", 0.1, 0.35],
       ["6?,00", 0.75, 0.351],
@@ -172,6 +172,8 @@ describe("Spanish canonical normalization", () => {
     expect(proposal.lineItems[1].unit).toBe("KG");
     expect(proposal.lineItems[1].unitPriceMinor?.normalized).toBe(42000);
     expect(proposal.warnings).toContain("LINE_ITEMS_INCOMPLETE");
+    input.pages[0].regions[7].text = "400,00";
+    expect(normalizeExtraction(input).lineItems[1].unitPriceMinor).toBeNull();
   });
 
   it("uses complete OCR IVA rows only when tax math and gross totals reconcile", () => {

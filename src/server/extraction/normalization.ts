@@ -252,6 +252,26 @@ function calculated(value: number, sources: Evidence[]): CalculatedCandidate {
   };
 }
 
+function quantityThousandths(value: string): bigint | null {
+  const match = value.match(/^(\d+)(?:\.(\d{1,3}))?$/);
+  if (!match) return null;
+  return (
+    BigInt(match[1]) * BigInt(1000) + BigInt((match[2] ?? "").padEnd(3, "0"))
+  );
+}
+
+function unitPriceMatches(
+  quantity: string | null,
+  unitPriceMinor: number,
+  lineTotalMinor: number,
+  discountMinor = 0,
+): boolean {
+  const milli = quantity === null ? null : quantityThousandths(quantity);
+  if (milli === null) return false;
+  const rounded = (BigInt(unitPriceMinor) * milli + BigInt(500)) / BigInt(1000);
+  return rounded - BigInt(discountMinor) === BigInt(lineTotalMinor);
+}
+
 function layoutItems(regions: Region[]): ProposedLine[] | null {
   const boxed = regions.filter((region) => region.box !== null);
   if (boxed.length < 12 || boxed.length / regions.length < 0.8) return null;
@@ -304,16 +324,6 @@ function layoutItems(regions: Region[]): ProposedLine[] | null {
           entry.amount !== null,
       );
     const price = prices.at(-1);
-    const unitPrice = price
-      ? row
-          .filter(
-            (region) =>
-              region.box![0] > description.box![0] + 0.08 &&
-              region.box![0] < price.region.box![0] - 0.02,
-          )
-          .map((region) => ({ region, amount: numericRegion(region) }))
-          .find((entry) => entry.amount !== null)
-      : null;
     const detail = row.find((region) =>
       /\b\d{1,3}[,.]\d{3}\s*KG\b|^\s*\d{1,3}[,.]\d{3}\s*X\b/i.test(region.text),
     );
@@ -324,13 +334,30 @@ function layoutItems(regions: Region[]): ProposedLine[] | null {
     const parsedQuantity = detail
       ? detail.text.match(/(\d{1,3})[,.](\d{3})/)
       : null;
+    const quantity = parsedQuantity
+      ? `${parsedQuantity[1]}.${parsedQuantity[2]}`
+      : count
+        ? count.text.trim().replace(/\s*X\s*$/i, "")
+        : null;
+    const unitPrice =
+      price && quantity
+        ? row
+            .filter(
+              (region) =>
+                region.box![0] > description.box![0] + 0.08 &&
+                region.box![0] < price.region.box![0] - 0.02 &&
+                /^\d{1,6}[.,]\d{1,2}$/.test(region.text.trim()),
+            )
+            .map((region) => ({ region, amount: parseMoneyMinor(region.text) }))
+            .find(
+              (entry) =>
+                entry.amount !== null &&
+                unitPriceMatches(quantity, entry.amount, price.amount),
+            )
+        : null;
     items.push({
       description: candidate(description, description.text),
-      quantity: parsedQuantity
-        ? candidate(detail!, `${parsedQuantity[1]}.${parsedQuantity[2]}`)
-        : count
-          ? candidate(count, count.text.trim().replace(/\s*X\s*$/i, ""))
-          : null,
+      quantity: quantity ? candidate((detail ?? count)!, quantity) : null,
       unit: parsedQuantity ? "KG" : count ? "UN" : null,
       unitPriceMinor:
         unitPrice && unitPrice.amount !== null
@@ -385,6 +412,16 @@ export function normalizeExtraction(result: ExtractionResult): Proposal {
   let current: ProposedLine | null = null;
   let summary = false;
   const flush = () => {
+    if (
+      current?.unitPriceMinor &&
+      !unitPriceMatches(
+        current.quantity?.normalized ?? null,
+        current.unitPriceMinor.normalized,
+        current.lineTotalMinor?.normalized ?? -1,
+        current.discountMinor?.normalized ?? 0,
+      )
+    )
+      current.unitPriceMinor = null;
     if (current?.lineTotalMinor) lineItems.push(current);
     current = null;
   };

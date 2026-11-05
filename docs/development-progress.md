@@ -2,6 +2,24 @@
 
 ## Current state — Step 5 delivered; Step 3 acceptance limits remain
 
+### Step 3 item price and field clarity follow-up — 2026-11-04
+
+- Audited the private receipt against the saved review. The printed quantity,
+  price, and line total agree for the weighed vegetables, bananas, and the
+  12-unit milk line. OCR read the mozzarella unit price with one missing zero;
+  arithmetic now validates this partial read before proposing it. Remaining
+  single-price products have no separate unit price printed.
+- Older immutable proposals show updated read-only item analysis with source
+  links. The correction editor labels prices by kg or unit, identifies net
+  before IVA, and folds optional per-item discount and IVA fields; this receipt
+  prints IVA only in its summary, so per-item IVA stays blank.
+- Review checks quantity times unit price against each line total and blocks
+  approval if a populated unit price does not reconcile.
+- `pnpm check` passed (67 TypeScript tests, 14 Python OCR tests, lint,
+  typecheck, format, and production build). Synthetic Compose extraction and
+  review smoke tests passed. A read-only replay of the private OCR evidence
+  recovered the corroborated unit price without changing the saved review.
+
 ### Step 3 IVA and reconciliation follow-up — 2026-11-04
 
 - Added source-linked IVA breakdown rows to OCR proposals. Receipt-level IVA

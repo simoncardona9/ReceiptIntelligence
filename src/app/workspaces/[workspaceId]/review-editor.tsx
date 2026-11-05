@@ -31,6 +31,8 @@ const warningLabels: Record<string, string> = {
   UNSPLIT_EXPENSE: "Gasto sin ítems detallados",
   LINE_ITEMS_INCOMPLETE: "Ítems incompletos",
   LINE_TOTAL_MISMATCH: "La suma de ítems no coincide con el total del recibo",
+  LINE_UNIT_PRICE_MISMATCH:
+    "Cantidad × precio no coincide con el total del producto",
 };
 
 const labels: Record<keyof ReviewFields, string> = {
@@ -38,7 +40,7 @@ const labels: Record<keyof ReviewFields, string> = {
   date: "Fecha",
   totalMinor: "Total",
   currency: "Moneda",
-  subtotalMinor: "Subtotal",
+  subtotalMinor: "Neto antes de IVA",
   discountMinor: "Descuento",
   taxMinor: "IVA",
   taxUnknown: "IVA desconocido",
@@ -388,6 +390,8 @@ export function ReviewEditor({
         {review.validation.warnings.map((warning) => (
           <li key={warning.code}>
             {warningLabels[warning.code] ?? warning.code} ·{" "}
+            {warning.code === "LINE_UNIT_PRICE_MISMATCH" &&
+              `Líneas ${review.validation.reconciliation.unitPriceMismatchLines.join(", ")} · `}
             {warning.severity === "financial" ? "Financiera" : "Informativa"}
             {warning.blocksApproval ? " · Bloquea aprobación" : ""}
             {warning.blocksExport ? " · Bloquea exportación" : ""}
@@ -573,6 +577,13 @@ export function ReviewEditor({
         </p>
       )}
       <h3>Ítems normalizados</h3>
+      {origin === "receipt" && (
+        <p>
+          El precio por kg o por unidad solo se completa si el OCR lee un precio
+          separado que coincide con cantidad × precio = total. Si el ticket
+          muestra IVA solo al final, dejá vacío el IVA de cada producto.
+        </p>
+      )}
       {draft.lineItems.map((item, index) => (
         <div className="review-line" key={lineIds[index] ?? index}>
           <label>
@@ -620,7 +631,10 @@ export function ReviewEditor({
             />
           </label>
           <label>
-            {moneyLabel("Precio unitario", draft.currency)}
+            {moneyLabel(
+              item.unit === "KG" ? "Precio por kg" : "Precio por unidad",
+              draft.currency,
+            )}
             <MoneyInput
               key={`${review.version}:${lineIds[index]}:unitPriceMinor`}
               valueMinor={item.unitPriceMinor}
@@ -631,23 +645,6 @@ export function ReviewEditor({
               onInvalidChange={(invalid) =>
                 markMoneyInvalid(
                   `line:${lineIds[index]}:unitPriceMinor`,
-                  invalid,
-                )
-              }
-            />
-          </label>
-          <label>
-            {moneyLabel("Descuento", draft.currency)}
-            <MoneyInput
-              key={`${review.version}:${lineIds[index]}:discountMinor`}
-              valueMinor={item.discountMinor}
-              disabled={!canEdit || saving}
-              onChangeMinor={(value) =>
-                updateLine(index, { discountMinor: value })
-              }
-              onInvalidChange={(invalid) =>
-                markMoneyInvalid(
-                  `line:${lineIds[index]}:discountMinor`,
                   invalid,
                 )
               }
@@ -670,18 +667,44 @@ export function ReviewEditor({
               }
             />
           </label>
-          <label>
-            {moneyLabel("IVA explícito de línea", draft.currency)}
-            <MoneyInput
-              key={`${review.version}:${lineIds[index]}:taxMinor`}
-              valueMinor={item.taxMinor ?? null}
-              disabled={!canEdit || saving}
-              onChangeMinor={(value) => updateLine(index, { taxMinor: value })}
-              onInvalidChange={(invalid) =>
-                markMoneyInvalid(`line:${lineIds[index]}:taxMinor`, invalid)
-              }
-            />
-          </label>
+          <details key={`${review.version}:${lineIds[index]}:extras`}>
+            <summary>
+              Descuento e IVA de este producto, si aparecen
+              {(item.discountMinor !== null || item.taxMinor != null) &&
+                " · con valores"}
+            </summary>
+            <label>
+              {moneyLabel("Descuento de línea", draft.currency)}
+              <MoneyInput
+                key={`${review.version}:${lineIds[index]}:discountMinor`}
+                valueMinor={item.discountMinor}
+                disabled={!canEdit || saving}
+                onChangeMinor={(value) =>
+                  updateLine(index, { discountMinor: value })
+                }
+                onInvalidChange={(invalid) =>
+                  markMoneyInvalid(
+                    `line:${lineIds[index]}:discountMinor`,
+                    invalid,
+                  )
+                }
+              />
+            </label>
+            <label>
+              {moneyLabel("IVA impreso para este producto", draft.currency)}
+              <MoneyInput
+                key={`${review.version}:${lineIds[index]}:taxMinor`}
+                valueMinor={item.taxMinor ?? null}
+                disabled={!canEdit || saving}
+                onChangeMinor={(value) =>
+                  updateLine(index, { taxMinor: value })
+                }
+                onInvalidChange={(invalid) =>
+                  markMoneyInvalid(`line:${lineIds[index]}:taxMinor`, invalid)
+                }
+              />
+            </label>
+          </details>
           {canEdit && (
             <button
               type="button"
