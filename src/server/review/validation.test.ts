@@ -107,6 +107,28 @@ describe("financial review validation", () => {
       confirmedFields: [],
     });
     expect(matching.reconciliation.itemStatus).toBe("match");
+    expect(matching.reconciliation.pricedItemCount).toBe(2);
+    expect(matching.reconciliation.missingItemCount).toBe(0);
+    expect(matching.reconciliation.differenceMinor).toBe(0);
+    const partial = evaluateReview({
+      current: {
+        ...fields,
+        lineItems: [
+          item("Arroz", 700),
+          { ...item("Carne", 500), lineTotalMinor: null },
+        ],
+      },
+      original: manual,
+      proposal: null,
+      confirmedFields: [],
+    });
+    expect(partial.reconciliation).toMatchObject({
+      itemSumMinor: 700,
+      pricedItemCount: 1,
+      missingItemCount: 1,
+      differenceMinor: 500,
+      itemStatus: "incomplete",
+    });
     const priced = evaluateReview({
       current: {
         ...fields,
@@ -144,7 +166,18 @@ describe("financial review validation", () => {
       confirmedFields: [],
     });
     expect(mismatch.reconciliation.itemSumMinor).toBe(1100);
+    expect(mismatch.reconciliation.differenceMinor).toBe(100);
     expect(mismatch.reconciliation.itemStatus).toBe("mismatch");
+    const over = evaluateReview({
+      current: {
+        ...fields,
+        lineItems: [item("Arroz", 700), item("Carne", 600)],
+      },
+      original: manual,
+      proposal: null,
+      confirmedFields: [],
+    });
+    expect(over.reconciliation.differenceMinor).toBe(-100);
     expect(mismatch.warnings).toContainEqual(
       expect.objectContaining({
         code: "LINE_TOTAL_MISMATCH",

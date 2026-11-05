@@ -2,6 +2,18 @@
 
 ## Current state — Step 5 delivered; Step 3 acceptance limits remain
 
+### Step 3 partial item-sum clarity — 2026-11-05
+
+- The review now shows the sum of products with known line totals, how many
+  products are missing a total, and the provisional difference from the
+  receipt total. An expandable list shows every amount included in the sum.
+  The difference is not assigned to a missing line, because tax or discounts
+  may also explain it. Calculations update with the unsaved draft.
+- `pnpm check` passed: formatting, lint, typecheck, 67 TypeScript tests,
+  14 Python OCR tests, and production build. Synthetic Compose review smoke
+  passed. Read-only validation of the current private receipt confirmed its
+  known line sum now reconciles; no receipt data was changed.
+
 ### Step 3 amount input clarity follow-up — 2026-11-05
 
 - Removed the repeated example amount from empty money inputs. Missing receipt

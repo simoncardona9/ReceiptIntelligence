@@ -52,6 +52,11 @@ block approval. For a receipt,
 the user must supply both IVA and net subtotal or explicitly mark IVA unknown
 before approval. The review page shows the OCR tax rows and lets the user inspect their source
 regions. All amounts remain editable through versioned corrections.
+Reconciliation also reports the count of products with and without a line
+total, plus the signed difference between the known line sum and receipt
+total. The editor labels the sum as partial when prices are missing and lists
+each product with its known amount or missing status on demand. The difference is a review clue; it is not
+assigned to any missing product automatically and may reflect IVA or discounts.
 The editor suggests net subtotal as total minus IVA plus discount after a user
 enters or confirms IVA. Applying the suggestion updates only the draft; saving
 it creates the normal auditable correction.

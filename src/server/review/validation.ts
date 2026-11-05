@@ -16,6 +16,9 @@ export type ReviewValidation = {
   warnings: ReviewWarning[];
   reconciliation: {
     itemSumMinor: number | null;
+    pricedItemCount: number;
+    missingItemCount: number;
+    differenceMinor: number | null;
     itemStatus: "match" | "mismatch" | "incomplete" | "no_items";
     netPlusTaxMinor: number | null;
     taxStatus: "match" | "mismatch" | "incomplete";
@@ -99,6 +102,12 @@ export function evaluateReview(input: {
     (sum, line) => sum + BigInt(line.lineTotalMinor ?? 0),
     BigInt(0),
   );
+  const pricedItemCount = current.lineItems.filter(
+    (line) => line.lineTotalMinor !== null,
+  ).length;
+  const missingItemCount = current.lineItems.length - pricedItemCount;
+  const difference =
+    current.totalMinor === null ? null : BigInt(current.totalMinor) - itemSum;
   const completeItems =
     current.lineItems.length > 0 &&
     current.lineItems.every((line) => line.lineTotalMinor !== null);
@@ -160,6 +169,14 @@ export function evaluateReview(input: {
     reconciliation: {
       itemSumMinor:
         itemSum <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(itemSum) : null,
+      pricedItemCount,
+      missingItemCount,
+      differenceMinor:
+        difference !== null &&
+        difference >= -BigInt(Number.MAX_SAFE_INTEGER) &&
+        difference <= BigInt(Number.MAX_SAFE_INTEGER)
+          ? Number(difference)
+          : null,
       itemStatus,
       netPlusTaxMinor:
         netPlusTax !== null && netPlusTax <= BigInt(Number.MAX_SAFE_INTEGER)

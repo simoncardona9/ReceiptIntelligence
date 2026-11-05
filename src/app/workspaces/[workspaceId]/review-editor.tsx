@@ -440,19 +440,78 @@ export function ReviewEditor({
           {draft.currency ?? ""}
         </p>
         <p>
-          Suma de productos:{" "}
-          {draftValidation.reconciliation.itemStatus === "no_items"
-            ? "sin ítems"
-            : draftValidation.reconciliation.itemSumMinor === null
+          Productos con total: {draftValidation.reconciliation.pricedItemCount}{" "}
+          de {draft.lineItems.length}. Suma de los importes conocidos:{" "}
+          <strong>
+            {draftValidation.reconciliation.itemSumMinor === null
               ? "sin dato"
               : pesosDisplay(draftValidation.reconciliation.itemSumMinor)}{" "}
+            {draft.currency ?? ""}
+          </strong>{" "}
           ·{" "}
           {draftValidation.reconciliation.itemStatus === "match"
             ? "conciliado con el total"
             : draftValidation.reconciliation.itemStatus === "mismatch"
               ? "no coincide"
-              : "pendiente de completar"}
+              : draftValidation.reconciliation.itemStatus === "no_items"
+                ? "sin ítems"
+                : "pendiente de completar"}
         </p>
+        {draftValidation.reconciliation.missingItemCount > 0 && (
+          <p>
+            {draftValidation.reconciliation.missingItemCount === 1
+              ? "Hay 1 producto sin total."
+              : `Hay ${draftValidation.reconciliation.missingItemCount} productos sin total.`}{" "}
+            Su importe no está incluido en la suma.
+          </p>
+        )}
+        {draftValidation.reconciliation.itemStatus === "match" &&
+          draftValidation.reconciliation.differenceMinor !== null &&
+          draftValidation.reconciliation.differenceMinor !== 0 && (
+            <p>
+              La suma concilia después de aplicar IVA o descuento registrado.
+            </p>
+          )}
+        {draft.totalMinor !== null &&
+          draftValidation.reconciliation.differenceMinor !== null &&
+          draftValidation.reconciliation.itemStatus !== "match" &&
+          draftValidation.reconciliation.itemStatus !== "no_items" && (
+            <p>
+              Diferencia provisional con el total:{" "}
+              {draftValidation.reconciliation.differenceMinor < 0
+                ? "la suma conocida supera el recibo por "
+                : "el recibo supera la suma conocida por "}
+              <strong>
+                {pesosDisplay(
+                  Math.abs(draftValidation.reconciliation.differenceMinor),
+                )}{" "}
+                {draft.currency ?? ""}
+              </strong>
+              . Revisá precios, IVA y descuentos; esta diferencia no se asigna
+              automáticamente a un producto.
+            </p>
+          )}
+        {draft.lineItems.length > 0 && (
+          <details>
+            <summary>Ver detalle por producto</summary>
+            <ol>
+              {draft.lineItems.map((item, index) => (
+                <li key={lineIds[index] ?? index}>
+                  <a href={`#review-line-${index + 1}`}>
+                    {index + 1}. {item.description}
+                  </a>{" "}
+                  —{" "}
+                  {item.lineTotalMinor === null
+                    ? "sin total"
+                    : `${pesosDisplay(item.lineTotalMinor)} ${draft.currency ?? ""}`}
+                </li>
+              ))}
+            </ol>
+          </details>
+        )}
+        {invalidMoney.size > 0 && (
+          <p>Corregí los importes inválidos para actualizar esta suma.</p>
+        )}
         <p>
           Neto menos descuento más IVA:{" "}
           {draftValidation.reconciliation.netPlusTaxMinor === null
