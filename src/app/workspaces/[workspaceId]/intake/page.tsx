@@ -76,9 +76,7 @@ export default function ReceiptIntakePage() {
     }
     const parsedTotal = totalPesos === "" ? null : parsePesos(totalPesos);
     if (totalPesos !== "" && parsedTotal === null) {
-      setError(
-        "Ingresa un total válido con hasta dos decimales, por ejemplo 123,45.",
-      );
+      setError("Ingresa un total válido con hasta dos decimales.");
       return;
     }
     setBusy(true);
@@ -228,7 +226,6 @@ export default function ReceiptIntakePage() {
               <input
                 type="text"
                 inputMode="decimal"
-                placeholder="123,45"
                 value={totalPesos}
                 onChange={(event) => setTotalPesos(event.target.value)}
               />

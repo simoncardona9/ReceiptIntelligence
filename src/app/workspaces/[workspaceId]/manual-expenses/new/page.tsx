@@ -60,9 +60,7 @@ export default function NewManualExpensePage() {
     const parsedTotal = parsePesos(totalPesos);
     const parsedLines = lines.map((line) => parsePesos(line.totalPesos));
     if (parsedTotal === null || parsedLines.some((amount) => amount === null)) {
-      setError(
-        "Ingresa importes válidos con hasta dos decimales, por ejemplo 123,45.",
-      );
+      setError("Completá los importes con hasta dos decimales.");
       return;
     }
     setBusy(true);
@@ -148,7 +146,6 @@ export default function NewManualExpensePage() {
               required
               type="text"
               inputMode="decimal"
-              placeholder="123,45"
               value={totalPesos}
               onChange={(event) => setTotalPesos(event.target.value)}
             />
@@ -207,7 +204,6 @@ export default function NewManualExpensePage() {
                   required
                   type="text"
                   inputMode="decimal"
-                  placeholder="123,45"
                   value={line.totalPesos}
                   onChange={(event) =>
                     editLine(index, "totalPesos", event.target.value)

@@ -2,6 +2,16 @@
 
 ## Current state — Step 5 delivered; Step 3 acceptance limits remain
 
+### Step 3 amount input clarity follow-up — 2026-11-05
+
+- Removed the repeated example amount from empty money inputs. Missing receipt
+  review amounts remain blank and show the existing inline missing-field
+  message and review summary; entered amounts and zero retain their distinct
+  meanings. Intake and manual expense amounts also start visibly blank.
+- `pnpm check` passed: formatting, lint, typecheck, 67 TypeScript tests,
+  14 Python OCR tests, and production build. This presentation change has no
+  data or API contract change.
+
 ### Step 3 missing-field review clarity — 2026-11-04
 
 - The review editor now outlines missing approval fields and receipt line

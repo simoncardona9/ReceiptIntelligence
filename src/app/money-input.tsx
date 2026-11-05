@@ -35,7 +35,6 @@ export function MoneyInput({
       <input
         type="text"
         inputMode="decimal"
-        placeholder="123,45"
         value={text}
         disabled={disabled}
         aria-invalid={invalid || needsAttention}
