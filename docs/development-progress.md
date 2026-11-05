@@ -1,5 +1,21 @@
 # Development Progress
 
+## Step 6 — Slice 6.3 receiving-contract investigation — 2026-11-05
+
+- Inspected the local ProyectoFinanzas checkout read-only. Its
+  `financeImportBundleSchema` (`web/src/modules/imports/import.schemas.ts`)
+  accepts accounts, categories, transactions and other finance rows, but no
+  stable receipt ID, receipt-level tax/subtotal, line items or product external
+  references. Its grocery purchase route
+  (`web/src/app/api/v1/grocery-plans/[planId]/purchases/route.ts`) links receipt
+  lines only to an existing paid transaction and plan; it cannot import a
+  standalone receipt or provide the required one-receipt direct-delivery
+  contract. No compatible receiving schema or route was found.
+- A receiving receipt import contract is required to verify Slice 6.3 schema
+  compatibility and to implement Slice 6.4 delivery without inventing behavior
+  in ReceiptIntelligence. The user chose to pause at this integration blocker.
+  Slices 6.3–6.5 have not passed their required acceptance checks.
+
 ## Step 6 — Slice 6.2 verification — 2026-11-05
 
 - Added workspace-scoped export preview, partial batch ZIP creation, immutable
