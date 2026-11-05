@@ -2,6 +2,22 @@
 
 ## Current state — Step 5 delivered; Step 3 acceptance limits remain
 
+### Step 3 repeat-upload follow-up — 2026-11-04
+
+- Diagnosed the user's live receipt: the worker was running PaddleOCR, but
+  uploading identical image bytes returned the existing receipt and its
+  immutable November 3 Tesseract proposal (four item rows). No new extraction
+  job was created, so the app still displayed the old result.
+- The intake page now identifies an existing receipt and links to it. The
+  review page offers reprocessing when eligible. A new job appends evidence and
+  proposal without changing the earlier proposal; an uncorrected review is
+  refreshed and an append-only reprocess event records both proposal IDs and
+  before/after review fields. Corrected and approved reviews are protected.
+- Migration `0015_review_reprocess.sql` applied locally. `pnpm check` passed
+  with 64 TypeScript tests, 14 Python tests, and a production build. Synthetic
+  Compose extraction smoke passed with reject → reprocess → review refresh and
+  audit checks; review smoke passed with approved reprocess denial.
+
 ### Step 3 currency default follow-up — 2026-11-04
 
 - Per the user's decision, UYU is the default currency when a receipt has no

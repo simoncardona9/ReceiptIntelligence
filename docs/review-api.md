@@ -52,7 +52,10 @@ approval endpoint enforces these blockers. Export remains a later step.
 It requires same-origin headers and a UUID idempotency key. Owners and editors
 can approve and reject; only owners can select per-record automatic approval.
 Approval returns `409 APPROVAL_BLOCKED` while financial blockers remain.
-Rejection is permanent. Choosing auto approval on a blocked review records the
+Rejection is permanent for that proposal. A receipt can receive a new OCR
+proposal through the explicit reprocess action while its review has no
+corrections; that action reopens a rejected review and audits the change.
+Choosing auto approval on a blocked review records the
 choice; a later valid correction creates the approved purchase in the same
 transaction as that correction. An auto choice on a ready review approves
 immediately.

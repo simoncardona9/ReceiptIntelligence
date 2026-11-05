@@ -450,6 +450,19 @@ async function run() {
   expected(receiptDecision.status, 200, "receipt approve");
   if ((receiptDecision.data.review as ReviewRecord).status !== "approved")
     throw new Error("receipt approval missing");
+  expected(
+    (
+      await api(
+        `${root}/receipts/${receiptId}/extraction-jobs`,
+        "POST",
+        owner,
+        undefined,
+        randomUUID(),
+      )
+    ).status,
+    409,
+    "approved receipt reprocess denied",
+  );
   const receiptPurchaseId = (receiptDecision.data.review as ReviewRecord)
     .approvedPurchaseId;
   const receiptDetail = await api(

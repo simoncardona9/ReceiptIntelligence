@@ -326,14 +326,16 @@ export default function SourceReviewPage() {
                   Ver cola de extracción
                 </Link>
                 {role !== "viewer" &&
-                  ["staged", "failed", "extracted"].includes(
+                  ["staged", "failed", "extracted", "review"].includes(
                     receipt.status,
                   ) && (
                     <button
                       type="button"
                       onClick={() => void submitExtraction()}
                     >
-                      Procesar recibo
+                      {receipt.status === "review"
+                        ? "Procesar de nuevo con OCR actual"
+                        : "Procesar recibo"}
                     </button>
                   )}
                 <Link
