@@ -262,6 +262,10 @@ async function run() {
   const proposalPath = `${path}/receipts/${receiptId}/proposal`;
   const proposalResponse = await api(proposalPath, "GET", viewer);
   expect(proposalResponse.status, 200, "viewer proposal read");
+  if (!Array.isArray(proposalResponse.data.taxAnalysis))
+    throw new Error("proposal response omitted tax analysis");
+  if (!Array.isArray(proposalResponse.data.lineAnalysis))
+    throw new Error("proposal response omitted line analysis");
   const proposal = (
     proposalResponse.data.stored as {
       proposal: {
@@ -305,6 +309,58 @@ async function run() {
     404,
     "foreign proposal scope",
   );
+  const originalProposalId = (proposalResponse.data.stored as { id: string })
+    .id;
+  const reviewPath = `${path}/review/receipt/${receiptId}`;
+  const rejected = await api(
+    `${reviewPath}/lifecycle`,
+    "POST",
+    owner,
+    {
+      action: "reject",
+      reason: "Synthetic OCR rerun check",
+      expectedVersion: 0,
+      expectedBaseProposalId: originalProposalId,
+    },
+    randomUUID(),
+  );
+  expect(rejected.status, 200, "reject before reprocess");
+  const rerun = await api(
+    `${path}/receipts/${receiptId}/extraction-jobs`,
+    "POST",
+    owner,
+    undefined,
+    randomUUID(),
+  );
+  expect(rerun.status, 201, "reprocess reviewed receipt");
+  const rerunJobId = (rerun.data.job as { id: string }).id;
+  let rerunStatus = "";
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const snapshot = await api(`${path}/extraction-jobs`, "GET", owner);
+    rerunStatus =
+      (
+        snapshot.data.queue as { jobs: { id: string; status: string }[] }
+      ).jobs.find((job) => job.id === rerunJobId)?.status ?? "";
+    if (rerunStatus === "completed" || rerunStatus === "failed") break;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  if (rerunStatus !== "completed")
+    throw new Error(`reprocess job did not complete: ${rerunStatus}`);
+  const updatedProposal = await api(proposalPath, "GET", owner);
+  expect(updatedProposal.status, 200, "updated proposal read");
+  if ((updatedProposal.data.stored as { id: string }).id === originalProposalId)
+    throw new Error("reprocess reused an immutable proposal");
+  const updatedReview = await api(reviewPath, "GET", owner);
+  expect(updatedReview.status, 200, "reprocessed review read");
+  const review = updatedReview.data.review as {
+    status: string;
+    baseProposalId: string;
+  };
+  if (
+    review.status === "rejected" ||
+    review.baseProposalId !== (updatedProposal.data.stored as { id: string }).id
+  )
+    throw new Error("reprocessed proposal did not refresh review");
   expect(
     (
       await api(
@@ -385,6 +441,12 @@ async function run() {
     throw new Error("removed source did not fail safely");
   const pool = new Pool({ connectionString: loadAppConfig().databaseUrl });
   try {
+    const reprocessAudit = await pool.query(
+      "SELECT 1 FROM review_reprocess_events WHERE job_id = $1 AND workspace_id = $2",
+      [rerunJobId, workspaceId],
+    );
+    if (reprocessAudit.rowCount !== 1)
+      throw new Error("reprocess lacks audit event");
     const evidence = await pool.query(
       "SELECT 1 FROM extraction_evidence WHERE job_id = $1 AND workspace_id = $2",
       [secondId, workspaceId],

@@ -2,6 +2,135 @@
 
 ## Current state — Step 5 delivered; Step 3 acceptance limits remain
 
+### Step 3 partial item-sum clarity — 2026-11-05
+
+- The review now shows the sum of products with known line totals, how many
+  products are missing a total, and the provisional difference from the
+  receipt total. An expandable list shows every amount included in the sum.
+  The difference is not assigned to a missing line, because tax or discounts
+  may also explain it. Calculations update with the unsaved draft.
+- `pnpm check` passed: formatting, lint, typecheck, 67 TypeScript tests,
+  14 Python OCR tests, and production build. Synthetic Compose review smoke
+  passed. Read-only validation of the current private receipt confirmed its
+  known line sum now reconciles; no receipt data was changed.
+
+### Step 3 amount input clarity follow-up — 2026-11-05
+
+- Removed the repeated example amount from empty money inputs. Missing receipt
+  review amounts remain blank and show the existing inline missing-field
+  message and review summary; entered amounts and zero retain their distinct
+  meanings. Intake and manual expense amounts also start visibly blank.
+- `pnpm check` passed: formatting, lint, typecheck, 67 TypeScript tests,
+  14 Python OCR tests, and production build. This presentation change has no
+  data or API contract change.
+
+### Step 3 missing-field review clarity — 2026-11-04
+
+- The review editor now outlines missing approval fields and receipt line
+  totals, gives each item a visible number, and links from a compact pending
+  summary to the exact field or row. Draft calculations and warnings update as
+  values change. Approval remains gated by saved server validation.
+- `pnpm check` passed: formatting, lint, typecheck, 67 TypeScript tests,
+  14 Python OCR tests, and production build. This UI change has no schema or
+  state transition changes.
+
+### Step 3 item price and field clarity follow-up — 2026-11-04
+
+- Audited the private receipt against the saved review. The printed quantity,
+  price, and line total agree for the weighed vegetables, bananas, and the
+  12-unit milk line. OCR read the mozzarella unit price with one missing zero;
+  arithmetic now validates this partial read before proposing it. Remaining
+  single-price products have no separate unit price printed.
+- Older immutable proposals show updated read-only item analysis with source
+  links. The correction editor labels prices by kg or unit, identifies net
+  before IVA, and folds optional per-item discount and IVA fields; this receipt
+  prints IVA only in its summary, so per-item IVA stays blank.
+- Review checks quantity times unit price against each line total and blocks
+  approval if a populated unit price does not reconcile.
+- `pnpm check` passed (67 TypeScript tests, 14 Python OCR tests, lint,
+  typecheck, format, and production build). Synthetic Compose extraction and
+  review smoke tests passed. A read-only replay of the private OCR evidence
+  recovered the corroborated unit price without changing the saved review.
+
+### Step 3 IVA and reconciliation follow-up — 2026-11-04
+
+- Added source-linked IVA breakdown rows to OCR proposals. Receipt-level IVA
+  and net subtotal are calculated only when every OCR row is complete, its
+  printed rate matches the tax-inclusive gross calculation, and gross rows
+  equal the printed receipt total. Otherwise the rows remain visible for user
+  correction and no tax total is invented.
+- Review now displays saved receipt total, item sum, and net-plus-IVA result.
+  Missing or inconsistent item prices block approval. For every receipt, the
+  user must enter tax and net subtotal or explicitly mark IVA unknown before
+  approval. The user still reviews the source and approves manually.
+- When the user supplies IVA, the editor offers a calculated net subtotal from
+  total minus IVA plus discount. It is applied to the draft only when selected
+  and saved through the existing audited correction flow.
+- On the private photo, the basic IVA row is readable but the exempt and
+  minimum-rate rows remain incomplete or misread, so the new parser correctly
+  leaves total IVA unfilled. No receipt text or source image was added to Git.
+- `pnpm check` passed with 67 TypeScript tests, 14 Python OCR tests, and the
+  production build. Synthetic Compose extraction and review smoke suites
+  passed; a real Paddle run on the private photo verified the incomplete-tax
+  warning.
+- Existing immutable proposals display a read-only IVA analysis from their
+  stored OCR evidence, preserving any saved manual corrections.
+
+### Step 3 repeat-upload follow-up — 2026-11-04
+
+- Diagnosed the user's live receipt: the worker was running PaddleOCR, but
+  uploading identical image bytes returned the existing receipt and its
+  immutable November 3 Tesseract proposal (four item rows). No new extraction
+  job was created, so the app still displayed the old result.
+- The intake page now identifies an existing receipt and links to it. The
+  review page offers reprocessing when eligible. A new job appends evidence and
+  proposal without changing the earlier proposal; an uncorrected review is
+  refreshed and an append-only reprocess event records both proposal IDs and
+  before/after review fields. Corrected and approved reviews are protected.
+- Migration `0015_review_reprocess.sql` applied locally. `pnpm check` passed
+  with 64 TypeScript tests, 14 Python tests, and a production build. Synthetic
+  Compose extraction smoke passed with reject → reprocess → review refresh and
+  audit checks; review smoke passed with approved reprocess denial.
+
+### Step 3 currency default follow-up — 2026-11-04
+
+- Per the user's decision, UYU is the default currency when a receipt has no
+  explicit currency token. Explicit USD/UYU OCR evidence takes precedence.
+  Defaulted proposals carry `origin: "default"` and null OCR evidence, and the
+  review page identifies the default. Older stored proposals without currency
+  also open in review with UYU; their immutable OCR record is unchanged.
+- Manual expense and receipt intake forms already default to UYU.
+- `pnpm check` passed: formatting, lint, TypeScript, 64 TypeScript tests, 14
+  Python OCR tests, and production build. Synthetic Compose extraction and
+  review smoke suites passed.
+
+### Step 3 OCR accuracy follow-up — 2026-11-04
+
+- Created `step-3-ocr-accuracy-followup` from merged `main`. The worker now
+  detects and enlarges a photographed receipt against a darker background,
+  while returning evidence boxes in original image coordinates. The canonical
+  proposal associates split text and price columns, including weighted rows,
+  and retains product descriptions when a price is unreadable. Receipt dates
+  after the totals section no longer conflict with the purchase date.
+- Switched the Compose worker default to PaddleOCR CPU, with pinned Python
+  packages and official model weights baked into a separate worker image.
+  Tesseract remains available by setting `OCR_ENGINE=tesseract`.
+- On the user-supplied private photo, the built Compose worker returned 11
+  product rows, 10 proposed prices, and the printed total of 2203.19 in about
+  14 seconds including container startup. One product price was unreadable and
+  another was misread, so both require manual review. No receipt image or raw
+  OCR output was added to the repository. The receipt does not explicitly
+  name a currency. A later user decision now defaults such proposals to UYU.
+- Synthetic tests cover crop/source-coordinate mapping and split item rows.
+  `pnpm check` passed: format, lint, TypeScript, 62 TypeScript tests, 14 Python
+  OCR tests, and production build. `docker compose config --quiet`, the worker
+  image build, a real Paddle run in that image, and synthetic Compose
+  `pnpm smoke:extraction` and `pnpm smoke:review` passed. The first extraction
+  smoke attempt ran while the web service was still starting; it passed after
+  the service reported ready.
+  Broader private-corpus accuracy and actual operating-system resource
+  exhaustion checks remain open.
+
 Slices 5.1–5.4 were implemented and pushed on `step-5-categories-products-records` after the user's full-step authorization. Step 6 is not authorized. The private-corpus OCR accuracy and actual operating-system resource exhaustion checks from Step 3 remain open.
 
 ### Step 5 final check — 2026-11-02

@@ -98,6 +98,75 @@ def image_size(path: Path) -> tuple[int, int]:
         raise WorkerFailure("SOURCE_UNREADABLE") from None
 
 
+def receipt_crop(image: Image.Image) -> tuple[int, int, int, int] | None:
+    """Find a light receipt against a darker photo background, conservatively."""
+    width, height = image.size
+    if width < 700 or height < 900:
+        return None
+    sample = image.convert("RGB")
+    sample.thumbnail((240, 420))
+    pixels = sample.load()
+    sw, sh = sample.size
+    visited = bytearray(sw * sh)
+    best = None
+    for sy in range(sh):
+        for sx in range(sw):
+            start = sy * sw + sx
+            if visited[start]:
+                continue
+            visited[start] = 1
+            red, green, blue = pixels[sx, sy]
+            if not (blue > 145 and blue - red > 22 and green - red > 12):
+                continue
+            stack = [(sx, sy)]
+            count = 0
+            left = right = sx
+            top = bottom = sy
+            while stack:
+                x, y = stack.pop()
+                count += 1
+                left, right = min(left, x), max(right, x)
+                top, bottom = min(top, y), max(bottom, y)
+                for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+                    if not (0 <= nx < sw and 0 <= ny < sh):
+                        continue
+                    index = ny * sw + nx
+                    if visited[index]:
+                        continue
+                    visited[index] = 1
+                    r, g, b = pixels[nx, ny]
+                    if b > 145 and b - r > 22 and g - r > 12:
+                        stack.append((nx, ny))
+            bounds = (left, top, right + 1, bottom + 1)
+            if (left <= 2 or top <= 2 or right >= sw - 3 or bottom >= sh - 3 or
+                    count < sw * sh * 0.08 or (right - left) < sw * 0.22 or
+                    (bottom - top) < sh * 0.45):
+                continue
+            if best is None or count > best[0]:
+                best = (count, bounds)
+    if best is None:
+        return None
+    _, (left, top, right, bottom) = best
+    margin = 5
+    return (max(0, int((left - margin) * width / sw)),
+            max(0, int((top - margin) * height / sh)),
+            min(width, int((right + margin) * width / sw)),
+            min(height, int((bottom + margin) * height / sh)))
+
+
+def remap_regions(regions: list[dict], crop: tuple[int, int, int, int],
+                  width: int, height: int) -> None:
+    left, top, right, bottom = crop
+    for region in regions:
+        box = region["box"]
+        if box is None:
+            continue
+        region["box"] = [round((left + box[0] * (right - left)) / width, 6),
+                         round((top + box[1] * (bottom - top)) / height, 6),
+                         round((left + box[2] * (right - left)) / width, 6),
+                         round((top + box[3] * (bottom - top)) / height, 6)]
+
+
 def normalized_box(values: list[float], width: int, height: int) -> list[float] | None:
     if len(values) != 4:
         return None
@@ -198,8 +267,26 @@ def process(request: object, allowed_root: Path) -> dict:
             if len(pages) >= MAX_PAGES:
                 raise WorkerFailure("PAGE_LIMIT")
             width, height = image_size(page_path)
-            regions = (tesseract_regions(page_path, width, height) if engine == "tesseract"
-                       else paddle_regions(page_path, width, height, device))
+            with Image.open(page_path) as source_image:
+                image = ImageOps.exif_transpose(source_image)
+                crop = receipt_crop(image) if source["mediaType"] != "application/pdf" else None
+                with tempfile.TemporaryDirectory() as temporary:
+                    ocr_path = page_path
+                    ocr_width, ocr_height = width, height
+                    if crop:
+                        prepared = image.crop(crop)
+                        scale = min(2, max(1, 1000 // prepared.width))
+                        if scale > 1 and prepared.width * prepared.height * scale * scale <= MAX_PIXELS:
+                            prepared = prepared.resize((prepared.width * scale,
+                                                        prepared.height * scale), Image.Resampling.LANCZOS)
+                        ocr_width, ocr_height = prepared.size
+                        ocr_path = Path(temporary) / "prepared.png"
+                        prepared.save(ocr_path)
+                    regions = (tesseract_regions(ocr_path, ocr_width, ocr_height)
+                               if engine == "tesseract" else
+                               paddle_regions(ocr_path, ocr_width, ocr_height, device))
+                    if crop:
+                        remap_regions(regions, crop, width, height)
             pages.append({"sourceId": source["id"], "page": page_index,
                           "width": width, "height": height, "regions": regions})
     return {"version": VERSION, "engine": engine, "device": device, "pages": pages,

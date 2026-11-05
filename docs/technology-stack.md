@@ -26,10 +26,10 @@ the baseline and optional GPU acceleration is supported. The extraction
 boundary remains replaceable so local engines can be evaluated without changing
 the approved domain model.
 
-The Compose worker currently runs Tesseract with Spanish data on CPU. PaddleOCR
-is an optional local adapter whose real-model CPU/GPU behavior has not yet been
-verified. The production default remains provisional until candidates are
-compared on an approved private corpus. See [ocr-evaluation.md](ocr-evaluation.md).
+The Compose worker runs PaddleOCR on CPU with models included in its image.
+Tesseract with Spanish data remains an explicit fallback. Broader private-corpus
+accuracy and GPU behavior remain unverified. See
+[ocr-evaluation.md](ocr-evaluation.md).
 
 ## Replaceability requirements
 

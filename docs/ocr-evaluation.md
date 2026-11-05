@@ -2,17 +2,13 @@
 
 ## Recommendation
 
-Evaluate **PaddleOCR as a primary local OCR candidate**, starting with its text
-recognition pipeline and evaluating PP-StructureV3 for document layout and
-line-item/table structure. The official documentation describes local use,
-CPU-capable deployment options, multilingual recognition including Spanish,
-and structure parsing for document images/PDFs.
-
-Use **Tesseract** as the current Compose CPU runtime and benchmark baseline.
-It has official Spanish language data and a simple local deployment model.
+Use **PaddleOCR** as the current Compose CPU runtime. Tesseract remains an
+explicit fallback and benchmark baseline. The worker image includes pinned
+PaddleOCR/PaddlePaddle packages and official detection and Spanish-capable
+recognition models; model weights are downloaded when the image is built.
 The project compared real PaddleOCR CPU models with Tesseract on the same five
-invented fixtures in November 2026. The production default remains undecided
-pending an approved private-corpus evaluation.
+invented fixtures in November 2026. One user-supplied receipt motivated this
+runtime switch, but broader private-corpus acceptance remains open.
 
 When using local PaddleOCR 3 models, set both model directories through
 `OCR_PADDLE_DETECTION_MODEL_DIR` and `OCR_PADDLE_RECOGNITION_MODEL_DIR`. Set
@@ -21,8 +17,7 @@ their official model names when they differ from PaddleOCR's defaults (for
 example, `latin_PP-OCRv5_mobile_rec` for Spanish recognition). Model files
 remain outside version control.
 
-Do not choose a local AI/document model as the first extraction dependency.
-Evaluate it only after the OCR baseline produces a measured corpus of hard
+Evaluate any additional local AI/document model only after the OCR baseline produces a measured corpus of hard
 receipts and known failure cases.
 
 ## Proposed boundary

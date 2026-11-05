@@ -1,0 +1,23 @@
+FROM node:24-bookworm-slim
+
+WORKDIR /app
+
+RUN corepack enable && apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-venv libgomp1 libgl1 libglib2.0-0 poppler-utils \
+    tesseract-ocr tesseract-ocr-spa && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m venv /opt/ocr-venv && \
+    /opt/ocr-venv/bin/pip install --no-cache-dir paddlepaddle==3.2.0 paddleocr==3.2.0
+
+ENV PADDLE_PDX_CACHE_HOME=/opt/ocr-models \
+    OCR_PADDLE_DETECTION_MODEL_NAME=PP-OCRv5_server_det \
+    OCR_PADDLE_RECOGNITION_MODEL_NAME=latin_PP-OCRv5_mobile_rec \
+    OCR_PADDLE_DETECTION_MODEL_DIR=/opt/ocr-models/official_models/PP-OCRv5_server_det \
+    OCR_PADDLE_RECOGNITION_MODEL_DIR=/opt/ocr-models/official_models/latin_PP-OCRv5_mobile_rec \
+    PATH=/opt/ocr-venv/bin:$PATH
+
+RUN python -c 'from paddleocr import PaddleOCR; PaddleOCR(lang="es", device="cpu", text_detection_model_name="PP-OCRv5_server_det", text_recognition_model_name="latin_PP-OCRv5_mobile_rec", use_doc_orientation_classify=False, use_doc_unwarping=False, use_textline_orientation=False)'
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY . .

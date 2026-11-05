@@ -14,7 +14,7 @@ const appConfigSchema = z
       .string()
       .min(1)
       .default("./.receipt-storage/private"),
-    OCR_ENGINE: z.enum(["paddle", "tesseract"]).default("tesseract"),
+    OCR_ENGINE: z.enum(["paddle", "tesseract"]).default("paddle"),
     OCR_DEVICE: z.enum(["cpu", "gpu"]).default("cpu"),
     BOOTSTRAP_OWNER_EMAIL: z.preprocess(
       (value) => (value === "" ? undefined : value),

@@ -44,6 +44,35 @@ method may be missing for approval, while their absence blocks export. The
 unsplit expense warning permits approval without usable line items. The
 approval endpoint enforces these blockers. Export remains a later step.
 
+The review response also reports the saved item sum and the net-minus-discount
+plus IVA calculation beside the receipt total. Receipt item totals must be
+complete and reconcile with the receipt total, allowing either tax-inclusive
+line prices or net line prices plus explicit tax; missing prices and mismatches
+block approval. For a receipt,
+the user must supply both IVA and net subtotal or explicitly mark IVA unknown
+before approval. The review page shows the OCR tax rows and lets the user inspect their source
+regions. All amounts remain editable through versioned corrections.
+Reconciliation also reports the count of products with and without a line
+total, plus the signed difference between the known line sum and receipt
+total. The editor labels the sum as partial when prices are missing and lists
+each product with its known amount or missing status on demand. The difference is a review clue; it is not
+assigned to any missing product automatically and may reflect IVA or discounts.
+The editor suggests net subtotal as total minus IVA plus discount after a user
+enters or confirms IVA. Applying the suggestion updates only the draft; saving
+it creates the normal auditable correction.
+The review editor outlines missing approval fields and incomplete receipt item
+totals next to their inputs. A linked summary jumps to each affected field or
+item row. The displayed arithmetic and warnings recalculate as draft values
+change; approval still requires saving and server validation.
+Empty amount fields have no example value; the missing-field message identifies
+required amounts until the user enters or confirms them.
+The proposal GET response includes `taxAnalysis` and `lineAnalysis` from the
+stored OCR evidence for older proposals, so existing saved reviews can inspect
+IVA rows and item prices without reprocessing or replacing their corrections.
+The review editor separates optional line discount and per-item IVA, which
+should be entered only when printed for that item. Quantity times unit price
+must reconcile with line total before approval whenever both values are set.
+
 ## Approval lifecycle
 
 `POST /api/workspaces/:workspaceId/review/:origin/:originId/lifecycle` accepts
@@ -52,7 +81,10 @@ approval endpoint enforces these blockers. Export remains a later step.
 It requires same-origin headers and a UUID idempotency key. Owners and editors
 can approve and reject; only owners can select per-record automatic approval.
 Approval returns `409 APPROVAL_BLOCKED` while financial blockers remain.
-Rejection is permanent. Choosing auto approval on a blocked review records the
+Rejection is permanent for that proposal. A receipt can receive a new OCR
+proposal through the explicit reprocess action while its review has no
+corrections; that action reopens a rejected review and audits the change.
+Choosing auto approval on a blocked review records the
 choice; a later valid correction creates the approved purchase in the same
 transaction as that correction. An auto choice on a ready review approves
 immediately.

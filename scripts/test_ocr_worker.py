@@ -6,6 +6,7 @@ import tempfile
 import types
 import unittest
 from unittest.mock import patch
+from PIL import Image, ImageDraw
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "extraction"))
 import worker  # noqa: E402
@@ -13,6 +14,19 @@ from ocr_fixtures import generate  # noqa: E402
 
 
 class WorkerTests(unittest.TestCase):
+    def test_photo_crop_and_source_coordinate_mapping(self):
+        image = Image.new("RGB", (900, 1200), (60, 55, 50))
+        drawing = ImageDraw.Draw(image)
+        drawing.rectangle((250, 100, 650, 1100), fill=(200, 225, 245))
+        crop = worker.receipt_crop(image)
+        self.assertIsNotNone(crop)
+        self.assertLess(crop[0], 250)
+        self.assertGreater(crop[2], 650)
+        regions = [{"box": [0.0, 0.0, 1.0, 1.0]}]
+        worker.remap_regions(regions, crop, 900, 1200)
+        self.assertAlmostEqual(regions[0]["box"][0], crop[0] / 900, places=5)
+        self.assertAlmostEqual(regions[0]["box"][3], crop[3] / 1200, places=5)
+
     def test_image_and_pdf_page_order_and_safe_output(self):
         with tempfile.TemporaryDirectory() as directory:
             manifest = generate(Path(directory))

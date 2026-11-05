@@ -8,11 +8,13 @@ export function MoneyInput({
   disabled,
   onChangeMinor,
   onInvalidChange,
+  needsAttention = false,
 }: {
   valueMinor: number | null;
   disabled?: boolean;
   onChangeMinor: (value: number | null) => void;
   onInvalidChange: (invalid: boolean) => void;
+  needsAttention?: boolean;
 }) {
   const [text, setText] = useState(
     valueMinor === null ? "" : pesosInput(valueMinor),
@@ -33,10 +35,9 @@ export function MoneyInput({
       <input
         type="text"
         inputMode="decimal"
-        placeholder="123,45"
         value={text}
         disabled={disabled}
-        aria-invalid={invalid}
+        aria-invalid={invalid || needsAttention}
         onChange={(event) => change(event.target.value)}
         onBlur={() => {
           if (!invalid && text.trim() !== "") {

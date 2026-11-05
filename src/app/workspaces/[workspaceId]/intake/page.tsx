@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { parsePesos } from "@/app/money";
 
 type Workspace = { id: string; role: "owner" | "editor" | "viewer" };
-type Receipt = { id: string; status: "staged"; sourceIds: string[] };
+type Receipt = { id: string; status: string; sourceIds: string[] };
 const allowedTypes = new Set([
   "image/jpeg",
   "image/png",
@@ -22,6 +22,7 @@ export default function ReceiptIntakePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [receiptCreated, setReceiptCreated] = useState(true);
   const [merchant, setMerchant] = useState("");
   const [date, setDate] = useState("");
   const [totalPesos, setTotalPesos] = useState("");
@@ -75,9 +76,7 @@ export default function ReceiptIntakePage() {
     }
     const parsedTotal = totalPesos === "" ? null : parsePesos(totalPesos);
     if (totalPesos !== "" && parsedTotal === null) {
-      setError(
-        "Ingresa un total válido con hasta dos decimales, por ejemplo 123,45.",
-      );
+      setError("Ingresa un total válido con hasta dos decimales.");
       return;
     }
     setBusy(true);
@@ -126,8 +125,12 @@ export default function ReceiptIntakePage() {
       });
       if (!staged.ok)
         throw new Error("No se pudo crear el recibo. Intenta nuevamente.");
-      const data = (await staged.json()) as { receipt: Receipt };
+      const data = (await staged.json()) as {
+        receipt: Receipt;
+        created: boolean;
+      };
       setReceipt(data.receipt);
+      setReceiptCreated(data.created);
       setFiles([]);
       const input = document.getElementById(
         "receipt-files",
@@ -223,7 +226,6 @@ export default function ReceiptIntakePage() {
               <input
                 type="text"
                 inputMode="decimal"
-                placeholder="123,45"
                 value={totalPesos}
                 onChange={(event) => setTotalPesos(event.target.value)}
               />
@@ -249,9 +251,17 @@ export default function ReceiptIntakePage() {
       {receipt && (
         <div role="status" className="success">
           <p>
-            Recibo {receipt.id} en estado «en espera» con{" "}
-            {receipt.sourceIds.length} archivo(s).
+            {receiptCreated
+              ? `Recibo ${receipt.id} creado con ${receipt.sourceIds.length} archivo(s).`
+              : `Este archivo ya estaba cargado en el recibo ${receipt.id}. La propuesta anterior se conserva; puedes solicitar una nueva extracción desde su revisión.`}
           </p>
+          {!receiptCreated && (
+            <Link
+              href={`/workspaces/${workspaceId}/receipts/${receipt.id}/review`}
+            >
+              Abrir recibo existente
+            </Link>
+          )}
           <Link
             href={`/workspaces/${workspaceId}/receipts/${receipt.id}/duplicates`}
           >

@@ -7,7 +7,7 @@ reuse with different input returns `409`.
 
 | Endpoint | Role | Result |
 |---|---|---|
-| `POST /api/workspaces/{workspaceId}/receipts/{receiptId}/extraction-jobs` | Owner/editor | Submit a staged/failed/extracted receipt. Returns `{job,created}` with `201`/`200`. |
+| `POST /api/workspaces/{workspaceId}/receipts/{receiptId}/extraction-jobs` | Owner/editor | Submit a staged/failed/extracted receipt, or reprocess one in review before corrections or approval. Returns `{job,created}` with `201`/`200`. |
 | `GET /api/workspaces/{workspaceId}/extraction-jobs` | Any member | Returns `{queue:{paused,resourcePaused,role,jobs}}`; most recent 100 jobs. Detailed safe error codes appear only to owners. |
 | `POST /api/workspaces/{workspaceId}/extraction-jobs/{jobId}/priority` | Owner/editor | JSON `{priority:0..10}` for queued/waiting jobs. |
 | `POST /api/workspaces/{workspaceId}/extraction-jobs/{jobId}/retry` | Owner/editor | Manually restart a failed/stopped job and reset its five-attempt budget. |
@@ -31,8 +31,15 @@ prevents a cancelled/stopped/stale process from storing evidence. Successful
 jobs store only provider-neutral page evidence; no proposal is approved or
 exported by this queue.
 
-The Compose development worker has local Tesseract Spanish language data,
-Python Pillow, and Poppler for PDF rasterization. PaddleOCR remains optional:
-it needs a compatible Python environment and explicitly installed local model
-directories. Set `OCR_ENGINE=paddle`, `OCR_DEVICE=cpu` or `gpu`, and local model
-paths in the worker environment when that setup is available.
+Uploading identical source bytes returns the existing source and receipt. A
+receipt in review can be reprocessed through the same job endpoint when its
+review has no corrections and is not approved. Completion adds a new immutable
+proposal, makes it the current proposal, refreshes the uncorrected review, and
+records the old/new proposal and fields in an append-only reprocess event.
+Corrected or approved reviews return `409` to protect user edits and approved
+records. The prior proposal and rejection event remain stored.
+
+The Compose development worker includes PaddleOCR CPU, its local models,
+Tesseract Spanish data, Pillow, and Poppler for PDF rasterization. PaddleOCR is
+the default. Set `OCR_ENGINE=tesseract` to use the fallback. GPU use still
+requires a compatible Paddle runtime and hardware.

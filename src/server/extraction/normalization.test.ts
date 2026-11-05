@@ -101,6 +101,28 @@ describe("Spanish canonical normalization", () => {
     expect(proposal.warnings).toContain("LINE_ITEMS_UNAVAILABLE");
   });
 
+  it("defaults an unspecified currency to UYU without inventing OCR evidence", () => {
+    const proposal = normalizeExtraction(
+      evidence(["MERCADO DEL BARRIO", "TOTAL $ 299,00"]),
+    );
+    expect(proposal.fields.currency).toEqual({
+      normalized: "UYU",
+      origin: "default",
+      exact: null,
+      confidence: null,
+      evidence: null,
+    });
+    expect(proposal.warnings).not.toContain("MISSING_CURRENCY");
+  });
+
+  it("uses an explicit USD token instead of the UYU default", () => {
+    const proposal = normalizeExtraction(
+      evidence(["MERCADO DEL BARRIO", "TOTAL USD 10,00"]),
+    );
+    expect(proposal.fields.currency?.normalized).toBe("USD");
+    expect(proposal.fields.currency?.evidence?.regionId).toBe("1");
+  });
+
   it("does not copy a long card number into a proposal", () => {
     const proposal = normalizeExtraction(
       evidence([
@@ -110,5 +132,98 @@ describe("Spanish canonical normalization", () => {
       ]),
     );
     expect(JSON.stringify(proposal)).not.toContain("4111");
+  });
+
+  it("associates split receipt columns and preserves products with unreadable prices", () => {
+    const rows: [string, number, number][] = [
+      ["MERCADO DEL BARRIO", 0.1, 0.1],
+      ["04/11/2026", 0.1, 0.14],
+      ["CONSUMO FINAL", 0.1, 0.2],
+      ["ARROZ 1 KG", 0.1, 0.25],
+      ["89,00", 0.75, 0.252],
+      ["CARNE KG", 0.1, 0.29],
+      ["0,500Kg X", 0.25, 0.311],
+      ["420,0", 0.5, 0.312],
+      ["210,00", 0.75, 0.313],
+      ["LECHE 1 L", 0.1, 0.35],
+      ["6?,00", 0.75, 0.351],
+      ["TOTAL", 0.1, 0.4],
+      ["299,00", 0.75, 0.402],
+      ["VENCIMIENTO 21/06/2028", 0.1, 0.8],
+    ];
+    const input = evidence(rows.map(([text]) => text));
+    input.pages[0].regions = rows.map(([text, x, y], index) => ({
+      id: String(index),
+      text,
+      confidence: 0.9,
+      box: [x, y, Math.min(x + 0.12, 0.99), y + 0.01],
+    }));
+    const proposal = normalizeExtraction(input);
+    expect(proposal.fields.totalMinor?.normalized).toBe(29900);
+    expect(proposal.fields.date?.normalized).toBe("2026-11-04");
+    expect(
+      proposal.conflicts.some((conflict) => conflict.field === "date"),
+    ).toBe(false);
+    expect(proposal.lineItems).toHaveLength(3);
+    expect(
+      proposal.lineItems.map((line) => line.lineTotalMinor?.normalized),
+    ).toEqual([8900, 21000, undefined]);
+    expect(proposal.lineItems[1].quantity?.normalized).toBe("0.500");
+    expect(proposal.lineItems[1].unit).toBe("KG");
+    expect(proposal.lineItems[1].unitPriceMinor?.normalized).toBe(42000);
+    expect(proposal.warnings).toContain("LINE_ITEMS_INCOMPLETE");
+    input.pages[0].regions[7].text = "400,00";
+    expect(normalizeExtraction(input).lineItems[1].unitPriceMinor).toBeNull();
+  });
+
+  it("uses complete OCR IVA rows only when tax math and gross totals reconcile", () => {
+    const rows: [string, number, number][] = [
+      ["MERCADO DEL BARRIO", 0.1, 0.1],
+      ["TOTAL", 0.1, 0.5],
+      ["2203,19", 0.75, 0.501],
+      ["Detalle de Impuestos", 0.1, 0.55],
+      ["IVA BASICO 22%", 0.1, 0.6],
+      ["806,00", 0.5, 0.601],
+      ["145,34", 0.75, 0.602],
+      ["IVA EXENTO 0%", 0.1, 0.63],
+      ["1335,19", 0.5, 0.631],
+      ["0,00", 0.75, 0.632],
+      ["IVA MINIMO 10%", 0.1, 0.66],
+      ["62,00", 0.5, 0.661],
+      ["5,64", 0.75, 0.662],
+    ];
+    const input = evidence(rows.map(([text]) => text));
+    input.pages[0].regions = rows.map(([text, x, y], index) => ({
+      id: String(index),
+      text,
+      confidence: 0.9,
+      box: [x, y, x + 0.12, y + 0.01],
+    }));
+    const valid = normalizeExtraction(input);
+    expect(valid.taxLines).toHaveLength(3);
+    expect(valid.fields.taxMinor).toMatchObject({
+      normalized: 15098,
+      origin: "calculated",
+    });
+    expect(
+      valid.fields.taxMinor && "sourceEvidence" in valid.fields.taxMinor
+        ? valid.fields.taxMinor.sourceEvidence.map((item) => item.regionId)
+        : null,
+    ).toEqual(["4", "5", "6", "7", "8", "9", "10", "11", "12"]);
+    expect(valid.fields.subtotalMinor?.normalized).toBe(205221);
+    input.pages[0].regions.push({
+      id: "13",
+      text: "IVA TOTAL $ 149,00",
+      confidence: 0.9,
+      box: [0.1, 0.72, 0.5, 0.73],
+    });
+    const conflicting = normalizeExtraction(input);
+    expect(conflicting.fields.taxMinor?.normalized).toBe(14900);
+    expect(conflicting.warnings).toContain("TAX_BREAKDOWN_MISMATCH");
+    input.pages[0].regions.pop();
+    input.pages[0].regions[12].text = "5,4";
+    const uncertain = normalizeExtraction(input);
+    expect(uncertain.fields.taxMinor).toBeNull();
+    expect(uncertain.warnings).toContain("TAX_BREAKDOWN_INCOMPLETE");
   });
 });

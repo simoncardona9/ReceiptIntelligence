@@ -4,6 +4,7 @@ import { DomainError, type WorkspaceRole } from "@/server/auth/contracts";
 import { requireWorkspacePermission } from "@/server/auth/authorization";
 import type { ExtractionResult } from "@/server/extraction/contracts";
 import type { Proposal } from "@/server/extraction/normalization";
+import { fieldsFromProposal } from "@/server/review/fields";
 import type { SourceMediaType } from "@/server/storage/contracts";
 
 export type JobStatus =
@@ -236,13 +237,37 @@ export class PostgresExtractionQueueRepository {
       );
       if (
         !active.rows[0] &&
-        !["staged", "failed", "extracted"].includes(receipt.rows[0].status)
+        !["staged", "failed", "extracted", "review"].includes(
+          receipt.rows[0].status,
+        )
       )
         throw new DomainError(
           "RECEIPT_NOT_EXTRACTABLE",
           409,
           "Receipt cannot be extracted now.",
         );
+      if (!active.rows[0]) {
+        const review = await client.query<{
+          version: number;
+          lifecycle_status: string;
+          auto_approve: boolean;
+        }>(
+          `SELECT version, lifecycle_status, auto_approve FROM review_records
+           WHERE workspace_id = $1 AND origin = 'receipt' AND origin_id = $2 FOR UPDATE`,
+          [workspaceId, receiptId],
+        );
+        if (
+          review.rows[0] &&
+          (review.rows[0].version > 0 ||
+            review.rows[0].lifecycle_status === "approved" ||
+            review.rows[0].auto_approve)
+        )
+          throw new DomainError(
+            "REPROCESS_REVIEW_LOCKED",
+            409,
+            "A corrected or approved review cannot be reprocessed.",
+          );
+      }
       const jobId = active.rows[0]?.id ?? randomUUID();
       let created = false;
       if (!active.rows[0]) {
@@ -605,8 +630,8 @@ export class PostgresExtractionQueueRepository {
     proposal: Proposal,
   ): Promise<boolean> {
     return this.transaction(async (client) => {
-      const current = await client.query(
-        "SELECT 1 FROM extraction_jobs WHERE id = $1 AND workspace_id = $2 AND run_token = $3 AND status = 'running' FOR UPDATE",
+      const current = await client.query<{ requestedBy: string }>(
+        "SELECT requested_by AS \"requestedBy\" FROM extraction_jobs WHERE id = $1 AND workspace_id = $2 AND run_token = $3 AND status = 'running' FOR UPDATE",
         [job.jobId, job.workspaceId, job.runToken],
       );
       if (!current.rowCount) return false;
@@ -624,18 +649,69 @@ export class PostgresExtractionQueueRepository {
           Math.round(result.diagnostics.durationMs),
         ],
       );
+      const proposalId = randomUUID();
       await client.query(
         `INSERT INTO receipt_proposals
         (id, workspace_id, receipt_id, job_id, schema_version, proposal)
         VALUES ($1,$2,$3,$4,1,$5)`,
         [
-          randomUUID(),
+          proposalId,
           job.workspaceId,
           job.receiptId,
           job.jobId,
           JSON.stringify(proposal),
         ],
       );
+      const review = await client.query<{
+        id: string;
+        base_proposal_id: string;
+        fields: object;
+        version: number;
+        lifecycle_status: string;
+      }>(
+        `SELECT id, base_proposal_id, fields, version, lifecycle_status
+         FROM review_records WHERE workspace_id = $1 AND origin = 'receipt'
+         AND origin_id = $2 FOR UPDATE`,
+        [job.workspaceId, job.receiptId],
+      );
+      if (review.rows[0]) {
+        const prior = review.rows[0];
+        if (prior.version !== 0 || prior.lifecycle_status === "approved")
+          throw new DomainError(
+            "REPROCESS_REVIEW_LOCKED",
+            409,
+            "Review changed during extraction.",
+          );
+        const updatedFields = fieldsFromProposal(proposal);
+        await client.query(
+          `UPDATE review_records SET base_proposal_id = $1, fields = $2,
+           lifecycle_status = 'review', auto_approve = false, updated_at = now()
+           WHERE id = $3 AND workspace_id = $4`,
+          [
+            proposalId,
+            JSON.stringify(updatedFields),
+            prior.id,
+            job.workspaceId,
+          ],
+        );
+        await client.query(
+          `INSERT INTO review_reprocess_events
+           (id, review_id, workspace_id, job_id, actor_user_id, old_proposal_id,
+            new_proposal_id, before_fields, after_fields)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          [
+            randomUUID(),
+            prior.id,
+            job.workspaceId,
+            job.jobId,
+            current.rows[0].requestedBy,
+            prior.base_proposal_id,
+            proposalId,
+            JSON.stringify(prior.fields),
+            JSON.stringify(updatedFields),
+          ],
+        );
+      }
       await client.query(
         `UPDATE extraction_jobs SET status = 'completed', run_token = NULL,
         completed_at = now(), updated_at = now() WHERE id = $1`,

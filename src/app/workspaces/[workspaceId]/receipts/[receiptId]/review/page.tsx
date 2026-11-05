@@ -20,7 +20,7 @@ const fieldLabels: Record<string, string> = {
   date: "Fecha",
   totalMinor: "Total",
   currency: "Moneda",
-  subtotalMinor: "Subtotal",
+  subtotalMinor: "Neto antes de IVA",
   taxMinor: "IVA",
   paymentMethod: "Medio de pago",
 };
@@ -33,6 +33,10 @@ const warningLabels: Record<string, string> = {
   MISSING_TAX_MINOR: "IVA",
   MISSING_PAYMENT_METHOD: "medio de pago",
   LINE_ITEMS_UNAVAILABLE: "ítems",
+  LINE_ITEMS_INCOMPLETE: "precios de ítems pendientes",
+  LINE_TOTAL_MISMATCH: "suma de ítems distinta del total",
+  TAX_BREAKDOWN_INCOMPLETE: "desglose de IVA pendiente de revisión",
+  TAX_BREAKDOWN_MISMATCH: "desglose de IVA distinto de los importes impresos",
   FIELD_CONFLICT: "valores en conflicto",
 };
 function displayValue(name: string, value: string | number): string {
@@ -59,6 +63,10 @@ export default function SourceReviewPage() {
   const [error, setError] = useState("");
   const [role, setRole] = useState<"owner" | "editor" | "viewer">("viewer");
   const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [taxAnalysis, setTaxAnalysis] = useState<
+    NonNullable<Proposal["taxLines"]>
+  >([]);
+  const [lineAnalysis, setLineAnalysis] = useState<Proposal["lineItems"]>([]);
   const [selectedEvidence, setSelectedEvidence] = useState<Evidence | null>(
     null,
   );
@@ -83,8 +91,12 @@ export default function SourceReviewPage() {
       if (proposalResponse.ok) {
         const proposalBody = (await proposalResponse.json()) as {
           stored: { proposal: Proposal };
+          taxAnalysis: NonNullable<Proposal["taxLines"]>;
+          lineAnalysis: Proposal["lineItems"];
         };
         setProposal(proposalBody.stored.proposal);
+        setTaxAnalysis(proposalBody.taxAnalysis);
+        setLineAnalysis(proposalBody.lineAnalysis);
       }
       const queueResponse = await fetch(
         `/api/workspaces/${workspaceId}/extraction-jobs`,
@@ -194,26 +206,36 @@ export default function SourceReviewPage() {
                             <span className="proposal-value">
                               {displayValue(name, value.normalized)}
                             </span>
-                            <span className="proposal-meta">
-                              Texto original: {value.exact} · Confianza:{" "}
-                              {value.confidence === null
-                                ? "sin dato"
-                                : `${Math.round(value.confidence * 100)}%`}
-                            </span>
-                            <span className="proposal-source">
-                              <button
-                                type="button"
-                                onClick={() => showEvidence(value.evidence)}
-                              >
-                                Ver fuente{" "}
-                                {receipt.sourceIds.indexOf(
-                                  value.evidence.sourceId,
-                                ) + 1}
-                                , página {value.evidence.page + 1}
-                              </button>
-                              {value.evidence.box === null &&
-                                " · Región no disponible"}
-                            </span>
+                            {value.evidence ? (
+                              <>
+                                <span className="proposal-meta">
+                                  Texto original: {value.exact} · Confianza:{" "}
+                                  {value.confidence === null
+                                    ? "sin dato"
+                                    : `${Math.round(value.confidence * 100)}%`}
+                                </span>
+                                <span className="proposal-source">
+                                  <button
+                                    type="button"
+                                    onClick={() => showEvidence(value.evidence)}
+                                  >
+                                    Ver fuente{" "}
+                                    {receipt.sourceIds.indexOf(
+                                      value.evidence.sourceId,
+                                    ) + 1}
+                                    , página {value.evidence.page + 1}
+                                  </button>
+                                  {value.evidence.box === null &&
+                                    " · Región no disponible"}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="proposal-meta">
+                                {name === "currency"
+                                  ? "Moneda predeterminada: pesos uruguayos. Sin evidencia OCR de moneda."
+                                  : "Valor calculado a partir de los importes detectados; revisar el desglose y la fuente."}
+                              </span>
+                            )}
                           </>
                         ) : (
                           "Sin dato"
@@ -222,16 +244,72 @@ export default function SourceReviewPage() {
                     </div>
                   ))}
                 </dl>
+                {taxAnalysis.length > 0 && (
+                  <>
+                    <h3>IVA leído del comprobante</h3>
+                    <p>
+                      Importes OCR provisionales: revisá cada fila en la imagen.
+                      El sistema solo calcula el IVA total cuando las filas
+                      concilian con el total del ticket.
+                    </p>
+                    <ul>
+                      {taxAnalysis.map((line, lineIndex) => (
+                        <li
+                          key={`${line.label.evidence.regionId}-${lineIndex}`}
+                        >
+                          {line.label.exact} · Importe bruto{" "}
+                          {line.grossMinor
+                            ? pesosDisplay(line.grossMinor.normalized)
+                            : "sin dato"}{" "}
+                          · IVA{" "}
+                          {line.taxMinor
+                            ? pesosDisplay(line.taxMinor.normalized)
+                            : "sin dato"}{" "}
+                          <button
+                            type="button"
+                            onClick={() => showEvidence(line.label.evidence)}
+                          >
+                            Ver fila en fuente
+                          </button>{" "}
+                          {line.taxMinor && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                showEvidence(line.taxMinor!.evidence)
+                              }
+                            >
+                              Ver importe en fuente
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
                 <h3>Ítems detectados</h3>
-                {proposal.lineItems.length ? (
+                <p>
+                  Lectura del OCR; las correcciones guardadas aparecen abajo.
+                </p>
+                {lineAnalysis.length ? (
                   <ul>
-                    {proposal.lineItems.map((item, itemIndex) => (
+                    {lineAnalysis.map((item, itemIndex) => (
                       <li
                         key={`${item.description.evidence.regionId}-${itemIndex}`}
                       >
                         {item.description.exact} ·{" "}
                         {item.quantity?.normalized ?? "cantidad sin dato"}{" "}
-                        {item.unit ?? ""} · Total{" "}
+                        {item.unit ?? ""}{" "}
+                        {item.quantity && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              showEvidence(item.quantity!.evidence)
+                            }
+                          >
+                            Ver cantidad en fuente
+                          </button>
+                        )}{" "}
+                        · Total{" "}
                         {item.lineTotalMinor
                           ? displayValue(
                               "lineTotalMinor",
@@ -241,12 +319,31 @@ export default function SourceReviewPage() {
                         {item.unitPriceMinor && (
                           <>
                             {" "}
-                            · Precio unitario{" "}
+                            · Precio{" "}
+                            {item.unit === "KG" ? "por kg" : "por unidad"}{" "}
                             {displayValue(
                               "unitPriceMinor",
                               item.unitPriceMinor.normalized,
                             )}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                showEvidence(item.unitPriceMinor!.evidence)
+                              }
+                            >
+                              Ver precio en fuente
+                            </button>
                           </>
+                        )}
+                        {item.lineTotalMinor && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              showEvidence(item.lineTotalMinor!.evidence)
+                            }
+                          >
+                            Ver total en fuente
+                          </button>
                         )}
                         {item.discountMinor && (
                           <>
@@ -315,14 +412,16 @@ export default function SourceReviewPage() {
                   Ver cola de extracción
                 </Link>
                 {role !== "viewer" &&
-                  ["staged", "failed", "extracted"].includes(
+                  ["staged", "failed", "extracted", "review"].includes(
                     receipt.status,
                   ) && (
                     <button
                       type="button"
                       onClick={() => void submitExtraction()}
                     >
-                      Procesar recibo
+                      {receipt.status === "review"
+                        ? "Procesar de nuevo con OCR actual"
+                        : "Procesar recibo"}
                     </button>
                   )}
                 <Link
@@ -496,6 +595,7 @@ export default function SourceReviewPage() {
               workspaceId={workspaceId}
               origin="receipt"
               originId={receiptId}
+              proposal={proposal}
             />
           )}
         </>

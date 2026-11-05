@@ -8,6 +8,8 @@ import type {
   ReviewRecord,
 } from "@/server/review/review-service";
 import type { MandatoryField } from "@/server/review/validation";
+import { evaluateReview } from "@/server/review/validation";
+import type { Proposal } from "@/server/extraction/normalization";
 import { MoneyInput } from "@/app/money-input";
 import { pesosDisplay } from "@/app/money";
 
@@ -20,6 +22,8 @@ const warningLabels: Record<string, string> = {
   LOW_CONFIDENCE_MERCHANT: "Comercio con confianza baja",
   LOW_CONFIDENCE_TOTALMINOR: "Total con confianza baja",
   TAX_STATUS_CONFLICT: "IVA marcado como desconocido y con valor",
+  TAX_REVIEW_REQUIRED:
+    "Revisá el IVA y completá IVA y neto, o marcá IVA desconocido",
   AMOUNT_MISMATCH: "Subtotal menos descuento más IVA no coincide con total",
   TAX_UNKNOWN: "IVA desconocido",
   ARITHMETIC_INCOMPLETE: "No hay datos suficientes para conciliar",
@@ -28,6 +32,9 @@ const warningLabels: Record<string, string> = {
   MISSING_EXPORT_PAYMENT_METHOD: "Falta medio de pago para exportar",
   UNSPLIT_EXPENSE: "Gasto sin ítems detallados",
   LINE_ITEMS_INCOMPLETE: "Ítems incompletos",
+  LINE_TOTAL_MISMATCH: "La suma de ítems no coincide con el total del recibo",
+  LINE_UNIT_PRICE_MISMATCH:
+    "Cantidad × precio no coincide con el total del producto",
 };
 
 const labels: Record<keyof ReviewFields, string> = {
@@ -35,7 +42,7 @@ const labels: Record<keyof ReviewFields, string> = {
   date: "Fecha",
   totalMinor: "Total",
   currency: "Moneda",
-  subtotalMinor: "Subtotal",
+  subtotalMinor: "Neto antes de IVA",
   discountMinor: "Descuento",
   taxMinor: "IVA",
   taxUnknown: "IVA desconocido",
@@ -94,10 +101,12 @@ export function ReviewEditor({
   workspaceId,
   origin,
   originId,
+  proposal = null,
 }: {
   workspaceId: string;
   origin: ReviewOrigin;
   originId: string;
+  proposal?: Proposal | null;
 }) {
   const path = `/api/workspaces/${workspaceId}/review/${origin}/${originId}`;
   const [review, setReview] = useState<ReviewRecord | null>(null);
@@ -111,6 +120,7 @@ export function ReviewEditor({
   const [confirmFields, setConfirmFields] = useState<MandatoryField[]>([]);
   const [invalidMoney, setInvalidMoney] = useState<Set<string>>(new Set());
   const [lineIds, setLineIds] = useState<string[]>([]);
+  const [netCalculationVersion, setNetCalculationVersion] = useState(0);
   function markMoneyInvalid(key: string, invalid: boolean) {
     setInvalidMoney((current) => {
       const next = new Set(current);
@@ -298,10 +308,96 @@ export function ReviewEditor({
       </section>
     );
   const canEdit = editable && review.status !== "rejected";
+  const draftValidation = evaluateReview({
+    current: draft,
+    original: review.original,
+    proposal,
+    confirmedFields: [...review.confirmedFields, ...confirmFields],
+  });
+  const draftWarning = (code: string) =>
+    draftValidation.warnings.some((warning) => warning.code === code);
+  const receiptTaxRequired = origin === "receipt" && !draft.taxUnknown;
+  const missing = [
+    ...(!draft.merchant?.trim()
+      ? [{ id: "review-field-merchant", label: "Comercio" }]
+      : []),
+    ...(draft.totalMinor === null
+      ? [{ id: "review-field-totalMinor", label: "Total del recibo" }]
+      : []),
+    ...(!draft.categoryName?.trim()
+      ? [{ id: "review-field-categoryName", label: "Categoría" }]
+      : []),
+    ...(receiptTaxRequired && draft.taxMinor === null
+      ? [{ id: "review-field-taxMinor", label: "IVA total" }]
+      : []),
+    ...(receiptTaxRequired && draft.subtotalMinor === null
+      ? [{ id: "review-field-subtotalMinor", label: "Neto antes de IVA" }]
+      : []),
+    ...draft.lineItems.flatMap((item, index) =>
+      origin === "receipt" && item.lineTotalMinor === null
+        ? [
+            {
+              id: `review-line-${index + 1}`,
+              label: `Ítem ${index + 1}: total`,
+            },
+          ]
+        : [],
+    ),
+  ];
+  if (draftWarning("LINE_TOTAL_MISMATCH"))
+    missing.push({ id: "review-items", label: "Suma de productos" });
+  if (draftWarning("AMOUNT_MISMATCH"))
+    missing.push({ id: "review-field-subtotalMinor", label: "Neto e IVA" });
+  for (const index of draftValidation.reconciliation.unitPriceMismatchLines)
+    missing.push({
+      id: `review-line-${index}`,
+      label: `Ítem ${index}: precio`,
+    });
+  for (const key of invalidMoney) {
+    if (key.startsWith("field:")) {
+      const field = key.slice(6) as keyof ReviewFields;
+      if (!missing.some((item) => item.id === `review-field-${field}`))
+        missing.push({
+          id: `review-field-${field}`,
+          label: `${labels[field]}: formato inválido`,
+        });
+    } else if (key.startsWith("line:")) {
+      const lineId = key.split(":")[1];
+      const index = lineIds.indexOf(lineId);
+      if (
+        index >= 0 &&
+        !missing.some((item) => item.id === `review-line-${index + 1}`)
+      )
+        missing.push({
+          id: `review-line-${index + 1}`,
+          label: `Ítem ${index + 1}: importe inválido`,
+        });
+    }
+  }
+  const missingIds = new Set(missing.map((item) => item.id));
+  const fieldNeedsAttention = (key: string) =>
+    missingIds.has(`review-field-${key}`) || invalidMoney.has(`field:${key}`);
   const hasUnsaved =
     JSON.stringify(draft) !== JSON.stringify(review.current) ||
     confirmFields.length > 0 ||
     invalidMoney.size > 0;
+  const suggestedNetBigInt =
+    draft.totalMinor !== null &&
+    draft.taxMinor !== null &&
+    !draft.taxUnknown &&
+    !["field:totalMinor", "field:taxMinor", "field:discountMinor"].some((key) =>
+      invalidMoney.has(key),
+    )
+      ? BigInt(draft.totalMinor) -
+        BigInt(draft.taxMinor) +
+        BigInt(draft.discountMinor ?? 0)
+      : null;
+  const suggestedNet =
+    suggestedNetBigInt !== null &&
+    suggestedNetBigInt >= BigInt(0) &&
+    suggestedNetBigInt <= BigInt(Number.MAX_SAFE_INTEGER)
+      ? Number(suggestedNetBigInt)
+      : null;
   return (
     <section className="workspace-card review-editor">
       <h2>Correcciones</h2>
@@ -310,6 +406,18 @@ export function ReviewEditor({
         disponibles en el historial.
       </p>
       <h3>Validación</h3>
+      {missing.length > 0 && (
+        <div className="review-pending" role="status">
+          <strong>Campos que necesitan revisión ({missing.length})</strong>
+          <ul>
+            {missing.map((item, index) => (
+              <li key={`${item.id}-${index}`}>
+                <a href={`#${item.id}`}>{item.label}</a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <p role="status">
         {review.status === "approved"
           ? "Compra aprobada"
@@ -322,10 +430,108 @@ export function ReviewEditor({
       {review.approvedPurchaseId && (
         <p>Compra aprobada: {review.approvedPurchaseId}</p>
       )}
+      <div className="review-reconciliation">
+        <h4>Comprobación final de importes</h4>
+        <p>
+          Total del recibo:{" "}
+          {draft.totalMinor === null
+            ? "sin dato"
+            : pesosDisplay(draft.totalMinor)}{" "}
+          {draft.currency ?? ""}
+        </p>
+        <p>
+          Productos con total: {draftValidation.reconciliation.pricedItemCount}{" "}
+          de {draft.lineItems.length}. Suma de los importes conocidos:{" "}
+          <strong>
+            {draftValidation.reconciliation.itemSumMinor === null
+              ? "sin dato"
+              : pesosDisplay(draftValidation.reconciliation.itemSumMinor)}{" "}
+            {draft.currency ?? ""}
+          </strong>{" "}
+          ·{" "}
+          {draftValidation.reconciliation.itemStatus === "match"
+            ? "conciliado con el total"
+            : draftValidation.reconciliation.itemStatus === "mismatch"
+              ? "no coincide"
+              : draftValidation.reconciliation.itemStatus === "no_items"
+                ? "sin ítems"
+                : "pendiente de completar"}
+        </p>
+        {draftValidation.reconciliation.missingItemCount > 0 && (
+          <p>
+            {draftValidation.reconciliation.missingItemCount === 1
+              ? "Hay 1 producto sin total."
+              : `Hay ${draftValidation.reconciliation.missingItemCount} productos sin total.`}{" "}
+            Su importe no está incluido en la suma.
+          </p>
+        )}
+        {draftValidation.reconciliation.itemStatus === "match" &&
+          draftValidation.reconciliation.differenceMinor !== null &&
+          draftValidation.reconciliation.differenceMinor !== 0 && (
+            <p>
+              La suma concilia después de aplicar IVA o descuento registrado.
+            </p>
+          )}
+        {draft.totalMinor !== null &&
+          draftValidation.reconciliation.differenceMinor !== null &&
+          draftValidation.reconciliation.itemStatus !== "match" &&
+          draftValidation.reconciliation.itemStatus !== "no_items" && (
+            <p>
+              Diferencia provisional con el total:{" "}
+              {draftValidation.reconciliation.differenceMinor < 0
+                ? "la suma conocida supera el recibo por "
+                : "el recibo supera la suma conocida por "}
+              <strong>
+                {pesosDisplay(
+                  Math.abs(draftValidation.reconciliation.differenceMinor),
+                )}{" "}
+                {draft.currency ?? ""}
+              </strong>
+              . Revisá precios, IVA y descuentos; esta diferencia no se asigna
+              automáticamente a un producto.
+            </p>
+          )}
+        {draft.lineItems.length > 0 && (
+          <details>
+            <summary>Ver detalle por producto</summary>
+            <ol>
+              {draft.lineItems.map((item, index) => (
+                <li key={lineIds[index] ?? index}>
+                  <a href={`#review-line-${index + 1}`}>
+                    {index + 1}. {item.description}
+                  </a>{" "}
+                  —{" "}
+                  {item.lineTotalMinor === null
+                    ? "sin total"
+                    : `${pesosDisplay(item.lineTotalMinor)} ${draft.currency ?? ""}`}
+                </li>
+              ))}
+            </ol>
+          </details>
+        )}
+        {invalidMoney.size > 0 && (
+          <p>Corregí los importes inválidos para actualizar esta suma.</p>
+        )}
+        <p>
+          Neto menos descuento más IVA:{" "}
+          {draftValidation.reconciliation.netPlusTaxMinor === null
+            ? "sin datos suficientes"
+            : pesosDisplay(draftValidation.reconciliation.netPlusTaxMinor)}{" "}
+          ·{" "}
+          {draftValidation.reconciliation.taxStatus === "match"
+            ? "coincide"
+            : draftValidation.reconciliation.taxStatus === "mismatch"
+              ? "no coincide"
+              : "pendiente de completar"}
+        </p>
+        <p>Revisá estos importes contra el comprobante antes de aprobar.</p>
+      </div>
       <ul>
-        {review.validation.warnings.map((warning) => (
+        {draftValidation.warnings.map((warning) => (
           <li key={warning.code}>
             {warningLabels[warning.code] ?? warning.code} ·{" "}
+            {warning.code === "LINE_UNIT_PRICE_MISMATCH" &&
+              `Líneas ${draftValidation.reconciliation.unitPriceMismatchLines.join(", ")} · `}
             {warning.severity === "financial" ? "Financiera" : "Informativa"}
             {warning.blocksApproval ? " · Bloquea aprobación" : ""}
             {warning.blocksExport ? " · Bloquea exportación" : ""}
@@ -424,7 +630,11 @@ export function ReviewEditor({
         )}
       <div className="review-editor-fields">
         {textKeys.map((key) => (
-          <label key={key}>
+          <label
+            key={key}
+            id={`review-field-${key}`}
+            className={fieldNeedsAttention(key) ? "review-needs-attention" : ""}
+          >
             {labels[key]}
             <input
               type={key === "date" ? "date" : "text"}
@@ -434,13 +644,24 @@ export function ReviewEditor({
                 setDraft({ ...draft, [key]: event.target.value || null })
               }
             />
+            {fieldNeedsAttention(key) && (
+              <span className="review-help">
+                {key === "categoryName"
+                  ? "Falta elegir una categoría."
+                  : "Falta completar este campo."}
+              </span>
+            )}
           </label>
         ))}
         {moneyKeys.map((key) => (
-          <label key={key}>
+          <label
+            key={key}
+            id={`review-field-${key}`}
+            className={fieldNeedsAttention(key) ? "review-needs-attention" : ""}
+          >
             {moneyLabel(labels[key], draft.currency)}
             <MoneyInput
-              key={`${review.version}:${review.baseProposalId}:${key}:${key === "taxMinor" && draft.taxUnknown ? "unknown" : "known"}`}
+              key={`${review.version}:${review.baseProposalId}:${key}:${key === "taxMinor" && draft.taxUnknown ? "unknown" : "known"}:${key === "subtotalMinor" ? netCalculationVersion : 0}`}
               valueMinor={draft[key]}
               disabled={
                 !canEdit || saving || (key === "taxMinor" && draft.taxUnknown)
@@ -453,7 +674,19 @@ export function ReviewEditor({
               onInvalidChange={(invalid) =>
                 markMoneyInvalid(`field:${key}`, invalid)
               }
+              needsAttention={fieldNeedsAttention(key)}
             />
+            {fieldNeedsAttention(key) && (
+              <span className="review-help">
+                {invalidMoney.has(`field:${key}`)
+                  ? "Revisá el formato del importe."
+                  : key === "taxMinor"
+                    ? "Completá el IVA total o marcá IVA desconocido."
+                    : key === "subtotalMinor"
+                      ? "Completá el neto; podés usar el cálculo sugerido."
+                      : "Falta este importe o no coincide con el total."}
+              </span>
+            )}
           </label>
         ))}
         <label>
@@ -492,9 +725,39 @@ export function ReviewEditor({
           IVA desconocido
         </label>
       </div>
-      <h3>Ítems normalizados</h3>
+      {suggestedNet !== null && (
+        <p>
+          Neto calculado desde total menos IVA más descuento:{" "}
+          {pesosDisplay(suggestedNet)} {draft.currency ?? ""}.{" "}
+          {canEdit && (
+            <button
+              type="button"
+              disabled={saving || invalidMoney.has("field:subtotalMinor")}
+              onClick={() => {
+                setDraft({ ...draft, subtotalMinor: suggestedNet });
+                setNetCalculationVersion((version) => version + 1);
+              }}
+            >
+              Usar neto calculado
+            </button>
+          )}
+        </p>
+      )}
+      <h3 id="review-items">Ítems normalizados</h3>
+      {origin === "receipt" && (
+        <p>
+          El precio por kg o por unidad solo se completa si el OCR lee un precio
+          separado que coincide con cantidad × precio = total. Si el ticket
+          muestra IVA solo al final, dejá vacío el IVA de cada producto.
+        </p>
+      )}
       {draft.lineItems.map((item, index) => (
-        <div className="review-line" key={lineIds[index] ?? index}>
+        <div
+          className={`review-line ${origin === "receipt" && item.lineTotalMinor === null ? "review-line-needs-attention" : ""}`}
+          key={lineIds[index] ?? index}
+          id={`review-line-${index + 1}`}
+        >
+          <strong>Ítem {index + 1}</strong>
           <label>
             Descripción
             <input
@@ -539,8 +802,19 @@ export function ReviewEditor({
               }
             />
           </label>
-          <label>
-            {moneyLabel("Precio unitario", draft.currency)}
+          <label
+            className={
+              draftValidation.reconciliation.unitPriceMismatchLines.includes(
+                index + 1,
+              ) || invalidMoney.has(`line:${lineIds[index]}:unitPriceMinor`)
+                ? "review-needs-attention"
+                : ""
+            }
+          >
+            {moneyLabel(
+              item.unit === "KG" ? "Precio por kg" : "Precio por unidad",
+              draft.currency,
+            )}
             <MoneyInput
               key={`${review.version}:${lineIds[index]}:unitPriceMinor`}
               valueMinor={item.unitPriceMinor}
@@ -554,26 +828,26 @@ export function ReviewEditor({
                   invalid,
                 )
               }
+              needsAttention={draftValidation.reconciliation.unitPriceMismatchLines.includes(
+                index + 1,
+              )}
             />
+            {draftValidation.reconciliation.unitPriceMismatchLines.includes(
+              index + 1,
+            ) && (
+              <span className="review-help">
+                Cantidad × precio no coincide con el total del producto.
+              </span>
+            )}
           </label>
-          <label>
-            {moneyLabel("Descuento", draft.currency)}
-            <MoneyInput
-              key={`${review.version}:${lineIds[index]}:discountMinor`}
-              valueMinor={item.discountMinor}
-              disabled={!canEdit || saving}
-              onChangeMinor={(value) =>
-                updateLine(index, { discountMinor: value })
-              }
-              onInvalidChange={(invalid) =>
-                markMoneyInvalid(
-                  `line:${lineIds[index]}:discountMinor`,
-                  invalid,
-                )
-              }
-            />
-          </label>
-          <label>
+          <label
+            className={
+              (origin === "receipt" && item.lineTotalMinor === null) ||
+              invalidMoney.has(`line:${lineIds[index]}:lineTotalMinor`)
+                ? "review-needs-attention"
+                : ""
+            }
+          >
             {moneyLabel("Total", draft.currency)}
             <MoneyInput
               key={`${review.version}:${lineIds[index]}:lineTotalMinor`}
@@ -588,20 +862,54 @@ export function ReviewEditor({
                   invalid,
                 )
               }
-            />
-          </label>
-          <label>
-            {moneyLabel("IVA explícito de línea", draft.currency)}
-            <MoneyInput
-              key={`${review.version}:${lineIds[index]}:taxMinor`}
-              valueMinor={item.taxMinor ?? null}
-              disabled={!canEdit || saving}
-              onChangeMinor={(value) => updateLine(index, { taxMinor: value })}
-              onInvalidChange={(invalid) =>
-                markMoneyInvalid(`line:${lineIds[index]}:taxMinor`, invalid)
+              needsAttention={
+                origin === "receipt" && item.lineTotalMinor === null
               }
             />
+            {origin === "receipt" && item.lineTotalMinor === null && (
+              <span className="review-help">
+                Falta el total de este producto.
+              </span>
+            )}
           </label>
+          <details key={`${review.version}:${lineIds[index]}:extras`}>
+            <summary>
+              Descuento e IVA de este producto, si aparecen
+              {(item.discountMinor !== null || item.taxMinor != null) &&
+                " · con valores"}
+            </summary>
+            <label>
+              {moneyLabel("Descuento de línea", draft.currency)}
+              <MoneyInput
+                key={`${review.version}:${lineIds[index]}:discountMinor`}
+                valueMinor={item.discountMinor}
+                disabled={!canEdit || saving}
+                onChangeMinor={(value) =>
+                  updateLine(index, { discountMinor: value })
+                }
+                onInvalidChange={(invalid) =>
+                  markMoneyInvalid(
+                    `line:${lineIds[index]}:discountMinor`,
+                    invalid,
+                  )
+                }
+              />
+            </label>
+            <label>
+              {moneyLabel("IVA impreso para este producto", draft.currency)}
+              <MoneyInput
+                key={`${review.version}:${lineIds[index]}:taxMinor`}
+                valueMinor={item.taxMinor ?? null}
+                disabled={!canEdit || saving}
+                onChangeMinor={(value) =>
+                  updateLine(index, { taxMinor: value })
+                }
+                onInvalidChange={(invalid) =>
+                  markMoneyInvalid(`line:${lineIds[index]}:taxMinor`, invalid)
+                }
+              />
+            </label>
+          </details>
           {canEdit && (
             <button
               type="button"
