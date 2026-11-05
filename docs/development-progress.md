@@ -1,5 +1,18 @@
 # Development Progress
 
+## Step 6 — Slice 6.1 verification — 2026-11-05
+
+- Created `step-6-exports-integration` from `origin/main`, which contains the
+  merged Step 5 work. Implemented versioned neutral JSON/CSV and manifest
+  contract with deterministic ordering, separate UYU/USD totals, SHA-256
+  content digest, optional product identity, and required-field rejection.
+  No original source files or filenames are included.
+- `pnpm typecheck` and `pnpm exec vitest run src/server/exports/neutral.test.ts`
+  passed (2 contract tests). `pnpm check` passed: formatting, lint, typecheck,
+  69 TypeScript tests, 14 Python OCR tests, and production build.
+- File delivery, export selection/authorization, history, and warning gating
+  remain Slice 6.2; this contract has no database or runtime mutation.
+
 ## Current state — Step 5 delivered; Step 3 acceptance limits remain
 
 ### Step 3 partial item-sum clarity — 2026-11-05
