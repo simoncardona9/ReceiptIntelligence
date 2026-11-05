@@ -42,6 +42,13 @@ export default function ApprovedPage() {
         </Link>
       </p>
       <h1>Compras aprobadas</h1>
+      {role !== "viewer" && (
+        <p>
+          <Link href={`/workspaces/${workspaceId}/exports`}>
+            Centro de exportación
+          </Link>
+        </p>
+      )}
       <p>
         Busca por comercio, producto o ID de recibo. Se muestran hasta 100
         resultados.

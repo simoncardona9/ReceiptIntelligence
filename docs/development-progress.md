@@ -1,5 +1,21 @@
 # Development Progress
 
+## Step 6 — Slice 6.2 verification — 2026-11-05
+
+- Added workspace-scoped export preview, partial batch ZIP creation, immutable
+  history, supersession and correction-only mode, download audit, and a Spanish
+  export center. Archived records, export-required missing fields, and financial
+  warning blockers are excluded. Viewer/outsider access is denied.
+- Migration `0016_exports.sql` applied in Compose. `pnpm typecheck`,
+  `pnpm lint`, and 69 TypeScript tests passed. `docker compose exec -T web pnpm
+  smoke:exports` passed synthetic owner/editor/viewer/outsider, valid/blocked
+  batch, ZIP contract, retry/conflict, archive blocking, and correction
+  supersession paths. `pnpm check` passed formatting, lint, typecheck, 69
+  TypeScript tests, 14 Python OCR tests, and production build. `docker compose
+  config --quiet` and a repeat `pnpm db:migrate` in the web container passed.
+- ZIP contents are stored privately in PostgreSQL; originals are not included.
+  External mapping and direct delivery remain later slices.
+
 ## Step 6 — Slice 6.1 verification — 2026-11-05
 
 - Created `step-6-exports-integration` from `origin/main`, which contains the
