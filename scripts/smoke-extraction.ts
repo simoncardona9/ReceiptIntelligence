@@ -262,6 +262,8 @@ async function run() {
   const proposalPath = `${path}/receipts/${receiptId}/proposal`;
   const proposalResponse = await api(proposalPath, "GET", viewer);
   expect(proposalResponse.status, 200, "viewer proposal read");
+  if (!Array.isArray(proposalResponse.data.taxAnalysis))
+    throw new Error("proposal response omitted tax analysis");
   const proposal = (
     proposalResponse.data.stored as {
       proposal: {

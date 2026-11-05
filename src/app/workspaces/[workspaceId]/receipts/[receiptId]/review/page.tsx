@@ -35,6 +35,8 @@ const warningLabels: Record<string, string> = {
   LINE_ITEMS_UNAVAILABLE: "ítems",
   LINE_ITEMS_INCOMPLETE: "precios de ítems pendientes",
   LINE_TOTAL_MISMATCH: "suma de ítems distinta del total",
+  TAX_BREAKDOWN_INCOMPLETE: "desglose de IVA pendiente de revisión",
+  TAX_BREAKDOWN_MISMATCH: "desglose de IVA distinto de los importes impresos",
   FIELD_CONFLICT: "valores en conflicto",
 };
 function displayValue(name: string, value: string | number): string {
@@ -61,6 +63,9 @@ export default function SourceReviewPage() {
   const [error, setError] = useState("");
   const [role, setRole] = useState<"owner" | "editor" | "viewer">("viewer");
   const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [taxAnalysis, setTaxAnalysis] = useState<
+    NonNullable<Proposal["taxLines"]>
+  >([]);
   const [selectedEvidence, setSelectedEvidence] = useState<Evidence | null>(
     null,
   );
@@ -85,8 +90,10 @@ export default function SourceReviewPage() {
       if (proposalResponse.ok) {
         const proposalBody = (await proposalResponse.json()) as {
           stored: { proposal: Proposal };
+          taxAnalysis: NonNullable<Proposal["taxLines"]>;
         };
         setProposal(proposalBody.stored.proposal);
+        setTaxAnalysis(proposalBody.taxAnalysis);
       }
       const queueResponse = await fetch(
         `/api/workspaces/${workspaceId}/extraction-jobs`,
@@ -221,8 +228,9 @@ export default function SourceReviewPage() {
                               </>
                             ) : (
                               <span className="proposal-meta">
-                                Moneda predeterminada: pesos uruguayos. Sin
-                                evidencia OCR de moneda.
+                                {name === "currency"
+                                  ? "Moneda predeterminada: pesos uruguayos. Sin evidencia OCR de moneda."
+                                  : "Valor calculado a partir de los importes detectados; revisar el desglose y la fuente."}
                               </span>
                             )}
                           </>
@@ -233,6 +241,43 @@ export default function SourceReviewPage() {
                     </div>
                   ))}
                 </dl>
+                {taxAnalysis.length > 0 && (
+                  <>
+                    <h3>IVA leído del comprobante</h3>
+                    <ul>
+                      {taxAnalysis.map((line, lineIndex) => (
+                        <li
+                          key={`${line.label.evidence.regionId}-${lineIndex}`}
+                        >
+                          {line.label.exact} · Importe bruto{" "}
+                          {line.grossMinor
+                            ? pesosDisplay(line.grossMinor.normalized)
+                            : "sin dato"}{" "}
+                          · IVA{" "}
+                          {line.taxMinor
+                            ? pesosDisplay(line.taxMinor.normalized)
+                            : "sin dato"}{" "}
+                          <button
+                            type="button"
+                            onClick={() => showEvidence(line.label.evidence)}
+                          >
+                            Ver fila en fuente
+                          </button>{" "}
+                          {line.taxMinor && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                showEvidence(line.taxMinor!.evidence)
+                              }
+                            >
+                              Ver importe en fuente
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
                 <h3>Ítems detectados</h3>
                 {proposal.lineItems.length ? (
                   <ul>

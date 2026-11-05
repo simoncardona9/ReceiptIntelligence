@@ -173,4 +173,55 @@ describe("Spanish canonical normalization", () => {
     expect(proposal.lineItems[1].unitPriceMinor?.normalized).toBe(42000);
     expect(proposal.warnings).toContain("LINE_ITEMS_INCOMPLETE");
   });
+
+  it("uses complete OCR IVA rows only when tax math and gross totals reconcile", () => {
+    const rows: [string, number, number][] = [
+      ["MERCADO DEL BARRIO", 0.1, 0.1],
+      ["TOTAL", 0.1, 0.5],
+      ["2203,19", 0.75, 0.501],
+      ["Detalle de Impuestos", 0.1, 0.55],
+      ["IVA BASICO 22%", 0.1, 0.6],
+      ["806,00", 0.5, 0.601],
+      ["145,34", 0.75, 0.602],
+      ["IVA EXENTO 0%", 0.1, 0.63],
+      ["1335,19", 0.5, 0.631],
+      ["0,00", 0.75, 0.632],
+      ["IVA MINIMO 10%", 0.1, 0.66],
+      ["62,00", 0.5, 0.661],
+      ["5,64", 0.75, 0.662],
+    ];
+    const input = evidence(rows.map(([text]) => text));
+    input.pages[0].regions = rows.map(([text, x, y], index) => ({
+      id: String(index),
+      text,
+      confidence: 0.9,
+      box: [x, y, x + 0.12, y + 0.01],
+    }));
+    const valid = normalizeExtraction(input);
+    expect(valid.taxLines).toHaveLength(3);
+    expect(valid.fields.taxMinor).toMatchObject({
+      normalized: 15098,
+      origin: "calculated",
+    });
+    expect(
+      valid.fields.taxMinor && "sourceEvidence" in valid.fields.taxMinor
+        ? valid.fields.taxMinor.sourceEvidence.map((item) => item.regionId)
+        : null,
+    ).toEqual(["4", "5", "6", "7", "8", "9", "10", "11", "12"]);
+    expect(valid.fields.subtotalMinor?.normalized).toBe(205221);
+    input.pages[0].regions.push({
+      id: "13",
+      text: "IVA TOTAL $ 149,00",
+      confidence: 0.9,
+      box: [0.1, 0.72, 0.5, 0.73],
+    });
+    const conflicting = normalizeExtraction(input);
+    expect(conflicting.fields.taxMinor?.normalized).toBe(14900);
+    expect(conflicting.warnings).toContain("TAX_BREAKDOWN_MISMATCH");
+    input.pages[0].regions.pop();
+    input.pages[0].regions[12].text = "5,4";
+    const uncertain = normalizeExtraction(input);
+    expect(uncertain.fields.taxMinor).toBeNull();
+    expect(uncertain.warnings).toContain("TAX_BREAKDOWN_INCOMPLETE");
+  });
 });

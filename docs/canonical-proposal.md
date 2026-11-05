@@ -24,6 +24,18 @@ Quantities use a decimal string and optional unit. Line items
 preserve descriptions and any detected quantity, unit price, discount, and
 line total. Missing or ambiguous items are left unfilled rather than invented.
 
+When OCR identifies an IVA breakdown, `proposal.taxLines` retains each printed
+rate, gross amount, and tax amount with source evidence. The parser computes
+receipt-level IVA and net subtotal only when every row has two-decimal amounts,
+each tax amount matches its rate against tax-inclusive gross, and gross rows
+sum exactly to the receipt total. Calculated candidates have
+`origin: "calculated"`, null OCR text/evidence, and `sourceEvidence` links to
+the contributing OCR regions. Incomplete or inconsistent rows leave the
+receipt-level tax unfilled and produce `TAX_BREAKDOWN_INCOMPLETE` for review.
+The proposal read API also returns `taxAnalysis` derived from stored OCR evidence
+for older immutable proposals. This read-only analysis leaves saved corrections
+and the original proposal unchanged.
+
 `proposal.conflicts` preserves alternative candidates with different
 normalized values. `proposal.warnings` lists missing fields, unavailable line
 items, and field conflicts. These warnings are informational at this stage;

@@ -86,6 +86,123 @@ describe("financial review validation", () => {
     ).toContain("TAX_STATUS_CONFLICT");
   });
 
+  it("checks saved item totals against receipt total before approval", () => {
+    const item = (description: string, amount: number) => ({
+      description,
+      quantity: null,
+      unit: null,
+      unitPriceMinor: null,
+      discountMinor: null,
+      lineTotalMinor: amount,
+    });
+    const fields = {
+      ...manual,
+      categoryName: "Food",
+      lineItems: [item("Arroz", 700), item("Carne", 500)],
+    };
+    const matching = evaluateReview({
+      current: fields,
+      original: manual,
+      proposal: null,
+      confirmedFields: [],
+    });
+    expect(matching.reconciliation.itemStatus).toBe("match");
+    const mismatch = evaluateReview({
+      current: {
+        ...fields,
+        lineItems: [item("Arroz", 700), item("Carne", 400)],
+      },
+      original: manual,
+      proposal: null,
+      confirmedFields: [],
+    });
+    expect(mismatch.reconciliation.itemSumMinor).toBe(1100);
+    expect(mismatch.reconciliation.itemStatus).toBe("mismatch");
+    expect(mismatch.warnings).toContainEqual(
+      expect.objectContaining({
+        code: "LINE_TOTAL_MISMATCH",
+        blocksApproval: true,
+      }),
+    );
+  });
+
+  it("requires user resolution when a printed IVA breakdown is incomplete", () => {
+    const evidence = { sourceId: "s", page: 0, regionId: "tax", box: null };
+    const proposal: Proposal = {
+      version: 1,
+      fields: {
+        merchant: null,
+        date: null,
+        totalMinor: null,
+        currency: null,
+        subtotalMinor: null,
+        taxMinor: null,
+        paymentMethod: null,
+      },
+      lineItems: [],
+      taxLines: [
+        {
+          ratePercent: 10,
+          label: {
+            exact: "IVA MINIMO 10%",
+            normalized: "IVA MINIMO 10%",
+            confidence: 0.9,
+            evidence,
+          },
+          grossMinor: null,
+          taxMinor: null,
+        },
+      ],
+      conflicts: [],
+      warnings: ["TAX_BREAKDOWN_INCOMPLETE"],
+    };
+    const current = { ...manual, categoryName: "Food", taxUnknown: false };
+    const blocked = evaluateReview({
+      current,
+      original: current,
+      proposal,
+      confirmedFields: [],
+    });
+    expect(codes(blocked)).toContain("TAX_REVIEW_REQUIRED");
+    expect(blocked.state).toBe("blocked");
+    const acknowledged = evaluateReview({
+      current: { ...current, taxUnknown: true },
+      original: current,
+      proposal,
+      confirmedFields: [],
+    });
+    expect(codes(acknowledged)).not.toContain("TAX_REVIEW_REQUIRED");
+    const corrected = evaluateReview({
+      current: { ...current, subtotalMinor: 1000, taxMinor: 200 },
+      original: current,
+      proposal,
+      confirmedFields: [],
+    });
+    expect(corrected.reconciliation.taxStatus).toBe("match");
+    expect(corrected.state).toBe("ready");
+    const missingItemPrice = evaluateReview({
+      current: {
+        ...current,
+        taxUnknown: true,
+        lineItems: [
+          {
+            description: "Arroz",
+            quantity: null,
+            unit: null,
+            unitPriceMinor: null,
+            discountMinor: null,
+            lineTotalMinor: null,
+          },
+        ],
+      },
+      original: current,
+      proposal,
+      confirmedFields: [],
+    });
+    expect(missingItemPrice.state).toBe("blocked");
+    expect(codes(missingItemPrice)).toContain("LINE_ITEMS_INCOMPLETE");
+  });
+
   it("requires correction or reasoned confirmation for conflicting low-confidence mandatory OCR", () => {
     const evidence = { sourceId: "s", page: 0, regionId: "r", box: null };
     const proposal: Proposal = {
@@ -126,7 +243,7 @@ describe("financial review validation", () => {
       ],
     };
     const original = fieldsFromProposal(proposal);
-    const current = { ...original, categoryName: "Food" };
+    const current = { ...original, categoryName: "Food", taxUnknown: true };
     const blocked = evaluateReview({
       current,
       original,

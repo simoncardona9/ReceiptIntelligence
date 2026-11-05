@@ -2,6 +2,30 @@
 
 ## Current state — Step 5 delivered; Step 3 acceptance limits remain
 
+### Step 3 IVA and reconciliation follow-up — 2026-11-04
+
+- Added source-linked IVA breakdown rows to OCR proposals. Receipt-level IVA
+  and net subtotal are calculated only when every OCR row is complete, its
+  printed rate matches the tax-inclusive gross calculation, and gross rows
+  equal the printed receipt total. Otherwise the rows remain visible for user
+  correction and no tax total is invented.
+- Review now displays saved receipt total, item sum, and net-plus-IVA result.
+  Missing or inconsistent item prices block approval. For every receipt, the
+  user must enter tax and net subtotal or explicitly mark IVA unknown before
+  approval. The user still reviews the source and approves manually.
+- When the user supplies IVA, the editor offers a calculated net subtotal from
+  total minus IVA plus discount. It is applied to the draft only when selected
+  and saved through the existing audited correction flow.
+- On the private photo, the basic IVA row is readable but the exempt and
+  minimum-rate rows remain incomplete or misread, so the new parser correctly
+  leaves total IVA unfilled. No receipt text or source image was added to Git.
+- `pnpm check` passed with 67 TypeScript tests, 14 Python OCR tests, and the
+  production build. Synthetic Compose extraction and review smoke suites
+  passed; a real Paddle run on the private photo verified the incomplete-tax
+  warning.
+- Existing immutable proposals display a read-only IVA analysis from their
+  stored OCR evidence, preserving any saved manual corrections.
+
 ### Step 3 repeat-upload follow-up — 2026-11-04
 
 - Diagnosed the user's live receipt: the worker was running PaddleOCR, but

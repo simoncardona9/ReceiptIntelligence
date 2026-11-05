@@ -19,13 +19,21 @@ export type DefaultCurrencyCandidate = {
   confidence: null;
   evidence: null;
 };
+export type CalculatedCandidate = {
+  normalized: number;
+  origin: "calculated";
+  exact: null;
+  confidence: null;
+  evidence: null;
+  sourceEvidence: Evidence[];
+};
 export type ProposalFields = {
   merchant: Candidate<string> | null;
   date: Candidate<string> | null;
   totalMinor: Candidate<number> | null;
   currency: Candidate<"UYU" | "USD"> | DefaultCurrencyCandidate | null;
-  subtotalMinor: Candidate<number> | null;
-  taxMinor: Candidate<number> | null;
+  subtotalMinor: Candidate<number> | CalculatedCandidate | null;
+  taxMinor: Candidate<number> | CalculatedCandidate | null;
   paymentMethod: Candidate<string> | null;
 };
 export type ProposedLine = {
@@ -40,6 +48,12 @@ export type Proposal = {
   version: 1;
   fields: ProposalFields;
   lineItems: ProposedLine[];
+  taxLines?: {
+    ratePercent: number;
+    label: Candidate<string>;
+    grossMinor: Candidate<number> | null;
+    taxMinor: Candidate<number> | null;
+  }[];
   conflicts: {
     field: keyof ProposalFields;
     alternatives: Candidate<string | number>[];
@@ -165,6 +179,77 @@ function numericRegion(region: Region): number | null {
   if (!/^(?:[$€]\s*)?\d{1,6}(?:[.,]\d{2})$/.test(region.text.trim()))
     return null;
   return parseMoneyMinor(region.text);
+}
+
+function taxBreakdown(regions: Region[]): NonNullable<Proposal["taxLines"]> {
+  const labels = regions.filter((region) =>
+    /^IVA\s+(?:BASICO|MINIMO|EXENTO)\s+\d{1,2}\s*%/.test(key(region.text)),
+  );
+  const rows = labels.map((label) => {
+    const ratePercent = Number(key(label.text).match(/(\d{1,2})\s*%/)![1]);
+    const amounts = regions
+      .filter(
+        (region) =>
+          region !== label &&
+          label.box &&
+          region.box &&
+          region.sourceId === label.sourceId &&
+          region.page === label.page &&
+          region.box[0] > label.box[0] &&
+          Math.abs(
+            (region.box[1] + region.box[3]) / 2 -
+              (label.box[1] + label.box[3]) / 2,
+          ) < 0.005,
+      )
+      .sort((a, b) => a.box![0] - b.box![0])
+      .map((region) => ({ region, minor: numericRegion(region) }))
+      .filter(
+        (entry): entry is { region: Region; minor: number } =>
+          entry.minor !== null,
+      );
+    return { label, ratePercent, amounts };
+  });
+  const reference = rows.find((row) => row.amounts.length >= 2);
+  const columnSplit = reference
+    ? (reference.amounts[0].region.box![0] +
+        reference.amounts.at(-1)!.region.box![0]) /
+      2
+    : null;
+  return rows.map(({ label, ratePercent, amounts }) => {
+    const gross =
+      columnSplit === null
+        ? amounts.length >= 2
+          ? amounts[0]
+          : null
+        : (amounts
+            .filter((entry) => entry.region.box![0] < columnSplit)
+            .at(-1) ?? null);
+    const tax =
+      columnSplit === null
+        ? amounts.length >= 2
+          ? amounts.at(-1)!
+          : null
+        : (amounts
+            .filter((entry) => entry.region.box![0] > columnSplit)
+            .at(-1) ?? null);
+    return {
+      ratePercent,
+      label: candidate(label, label.text),
+      grossMinor: gross ? candidate(gross.region, gross.minor) : null,
+      taxMinor: tax ? candidate(tax.region, tax.minor) : null,
+    };
+  });
+}
+
+function calculated(value: number, sources: Evidence[]): CalculatedCandidate {
+  return {
+    normalized: value,
+    origin: "calculated",
+    exact: null,
+    confidence: null,
+    evidence: null,
+    sourceEvidence: sources,
+  };
 }
 
 function layoutItems(regions: Region[]): ProposedLine[] | null {
@@ -415,6 +500,7 @@ export function normalizeExtraction(result: ExtractionResult): Proposal {
   flush();
   const spatialItems = layoutItems(regions);
   if (spatialItems) lineItems.splice(0, lineItems.length, ...spatialItems);
+  const taxLines = taxBreakdown(regions);
   const fields: ProposalFields = {
     merchant: options.merchant[0] ?? null,
     date: options.date[0] ?? null,
@@ -430,6 +516,46 @@ export function normalizeExtraction(result: ExtractionResult): Proposal {
     taxMinor: options.taxMinor[0] ?? null,
     paymentMethod: options.paymentMethod[0] ?? null,
   };
+  let taxBreakdownConflict = false;
+  if (
+    taxLines.length > 0 &&
+    taxLines.every((line) => line.grossMinor && line.taxMinor) &&
+    fields.totalMinor &&
+    taxLines.reduce((sum, line) => sum + line.grossMinor!.normalized, 0) ===
+      fields.totalMinor.normalized &&
+    taxLines.every((line) => {
+      const gross = line.grossMinor!.normalized;
+      const divisor = BigInt(100 + line.ratePercent);
+      const expected = Number(
+        (BigInt(gross) * BigInt(line.ratePercent) + divisor / BigInt(2)) /
+          divisor,
+      );
+      return line.taxMinor!.normalized === expected;
+    })
+  ) {
+    const tax = taxLines.reduce(
+      (sum, line) => sum + line.taxMinor!.normalized,
+      0,
+    );
+    if (tax <= fields.totalMinor.normalized) {
+      const taxEvidence = taxLines.flatMap((line) => [
+        line.label.evidence,
+        line.grossMinor!.evidence,
+        line.taxMinor!.evidence,
+      ]);
+      if (fields.taxMinor && fields.taxMinor.normalized !== tax)
+        taxBreakdownConflict = true;
+      else if (!fields.taxMinor) fields.taxMinor = calculated(tax, taxEvidence);
+      const net = fields.totalMinor.normalized - tax;
+      if (fields.subtotalMinor && fields.subtotalMinor.normalized !== net)
+        taxBreakdownConflict = true;
+      else if (!fields.subtotalMinor)
+        fields.subtotalMinor = calculated(net, [
+          fields.totalMinor.evidence,
+          ...taxEvidence,
+        ]);
+    }
+  }
   const conflicts: Proposal["conflicts"] = [];
   for (const [name, values] of Object.entries(options)) {
     if (values.some((value) => value.normalized !== values[0]?.normalized))
@@ -445,6 +571,10 @@ export function normalizeExtraction(result: ExtractionResult): Proposal {
         ([name]) => `MISSING_${name.replace(/([A-Z])/g, "_$1").toUpperCase()}`,
       ),
     ...(lineItems.length ? [] : ["LINE_ITEMS_UNAVAILABLE"]),
+    ...(taxLines.length && !fields.taxMinor
+      ? ["TAX_BREAKDOWN_INCOMPLETE"]
+      : []),
+    ...(taxBreakdownConflict ? ["TAX_BREAKDOWN_MISMATCH"] : []),
     ...(lineItems.some((line) => line.lineTotalMinor === null)
       ? ["LINE_ITEMS_INCOMPLETE"]
       : []),
@@ -459,5 +589,5 @@ export function normalizeExtraction(result: ExtractionResult): Proposal {
       : []),
     ...(conflicts.length ? ["FIELD_CONFLICT"] : []),
   ];
-  return { version: 1, fields, lineItems, conflicts, warnings };
+  return { version: 1, fields, lineItems, taxLines, conflicts, warnings };
 }

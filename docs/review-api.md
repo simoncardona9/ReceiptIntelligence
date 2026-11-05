@@ -44,6 +44,21 @@ method may be missing for approval, while their absence blocks export. The
 unsplit expense warning permits approval without usable line items. The
 approval endpoint enforces these blockers. Export remains a later step.
 
+The review response also reports the saved item sum and the net-minus-discount
+plus IVA calculation beside the receipt total. Receipt item totals must be
+complete and reconcile with the receipt total, allowing either tax-inclusive
+line prices or net line prices plus explicit tax; missing prices and mismatches
+block approval. For a receipt,
+the user must supply both IVA and net subtotal or explicitly mark IVA unknown
+before approval. The review page shows the OCR tax rows and lets the user inspect their source
+regions. All amounts remain editable through versioned corrections.
+The editor suggests net subtotal as total minus IVA plus discount after a user
+enters or confirms IVA. Applying the suggestion updates only the draft; saving
+it creates the normal auditable correction.
+The proposal GET response includes `taxAnalysis` from the stored OCR evidence
+for older proposals, so existing saved reviews can inspect IVA rows without
+reprocessing or replacing their corrections.
+
 ## Approval lifecycle
 
 `POST /api/workspaces/:workspaceId/review/:origin/:originId/lifecycle` accepts

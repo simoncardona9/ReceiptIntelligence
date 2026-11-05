@@ -20,6 +20,8 @@ const warningLabels: Record<string, string> = {
   LOW_CONFIDENCE_MERCHANT: "Comercio con confianza baja",
   LOW_CONFIDENCE_TOTALMINOR: "Total con confianza baja",
   TAX_STATUS_CONFLICT: "IVA marcado como desconocido y con valor",
+  TAX_REVIEW_REQUIRED:
+    "Revisá el IVA y completá IVA y neto, o marcá IVA desconocido",
   AMOUNT_MISMATCH: "Subtotal menos descuento más IVA no coincide con total",
   TAX_UNKNOWN: "IVA desconocido",
   ARITHMETIC_INCOMPLETE: "No hay datos suficientes para conciliar",
@@ -28,6 +30,7 @@ const warningLabels: Record<string, string> = {
   MISSING_EXPORT_PAYMENT_METHOD: "Falta medio de pago para exportar",
   UNSPLIT_EXPENSE: "Gasto sin ítems detallados",
   LINE_ITEMS_INCOMPLETE: "Ítems incompletos",
+  LINE_TOTAL_MISMATCH: "La suma de ítems no coincide con el total del recibo",
 };
 
 const labels: Record<keyof ReviewFields, string> = {
@@ -111,6 +114,7 @@ export function ReviewEditor({
   const [confirmFields, setConfirmFields] = useState<MandatoryField[]>([]);
   const [invalidMoney, setInvalidMoney] = useState<Set<string>>(new Set());
   const [lineIds, setLineIds] = useState<string[]>([]);
+  const [netCalculationVersion, setNetCalculationVersion] = useState(0);
   function markMoneyInvalid(key: string, invalid: boolean) {
     setInvalidMoney((current) => {
       const next = new Set(current);
@@ -302,6 +306,23 @@ export function ReviewEditor({
     JSON.stringify(draft) !== JSON.stringify(review.current) ||
     confirmFields.length > 0 ||
     invalidMoney.size > 0;
+  const suggestedNetBigInt =
+    draft.totalMinor !== null &&
+    draft.taxMinor !== null &&
+    !draft.taxUnknown &&
+    !["field:totalMinor", "field:taxMinor", "field:discountMinor"].some((key) =>
+      invalidMoney.has(key),
+    )
+      ? BigInt(draft.totalMinor) -
+        BigInt(draft.taxMinor) +
+        BigInt(draft.discountMinor ?? 0)
+      : null;
+  const suggestedNet =
+    suggestedNetBigInt !== null &&
+    suggestedNetBigInt >= BigInt(0) &&
+    suggestedNetBigInt <= BigInt(Number.MAX_SAFE_INTEGER)
+      ? Number(suggestedNetBigInt)
+      : null;
   return (
     <section className="workspace-card review-editor">
       <h2>Correcciones</h2>
@@ -322,6 +343,47 @@ export function ReviewEditor({
       {review.approvedPurchaseId && (
         <p>Compra aprobada: {review.approvedPurchaseId}</p>
       )}
+      <div className="review-reconciliation">
+        <h4>Comprobación final de importes</h4>
+        <p>
+          Total del recibo:{" "}
+          {review.current.totalMinor === null
+            ? "sin dato"
+            : pesosDisplay(review.current.totalMinor)}{" "}
+          {review.current.currency ?? ""}
+        </p>
+        <p>
+          Suma de productos:{" "}
+          {review.validation.reconciliation.itemStatus === "no_items"
+            ? "sin ítems"
+            : review.validation.reconciliation.itemSumMinor === null
+              ? "sin dato"
+              : pesosDisplay(
+                  review.validation.reconciliation.itemSumMinor,
+                )}{" "}
+          ·{" "}
+          {review.validation.reconciliation.itemStatus === "match"
+            ? "conciliado con el total"
+            : review.validation.reconciliation.itemStatus === "mismatch"
+              ? "no coincide"
+              : "pendiente de completar"}
+        </p>
+        <p>
+          Neto menos descuento más IVA:{" "}
+          {review.validation.reconciliation.netPlusTaxMinor === null
+            ? "sin datos suficientes"
+            : pesosDisplay(
+                review.validation.reconciliation.netPlusTaxMinor,
+              )}{" "}
+          ·{" "}
+          {review.validation.reconciliation.taxStatus === "match"
+            ? "coincide"
+            : review.validation.reconciliation.taxStatus === "mismatch"
+              ? "no coincide"
+              : "pendiente de completar"}
+        </p>
+        <p>Revisá estos importes contra el comprobante antes de aprobar.</p>
+      </div>
       <ul>
         {review.validation.warnings.map((warning) => (
           <li key={warning.code}>
@@ -440,7 +502,7 @@ export function ReviewEditor({
           <label key={key}>
             {moneyLabel(labels[key], draft.currency)}
             <MoneyInput
-              key={`${review.version}:${review.baseProposalId}:${key}:${key === "taxMinor" && draft.taxUnknown ? "unknown" : "known"}`}
+              key={`${review.version}:${review.baseProposalId}:${key}:${key === "taxMinor" && draft.taxUnknown ? "unknown" : "known"}:${key === "subtotalMinor" ? netCalculationVersion : 0}`}
               valueMinor={draft[key]}
               disabled={
                 !canEdit || saving || (key === "taxMinor" && draft.taxUnknown)
@@ -492,6 +554,24 @@ export function ReviewEditor({
           IVA desconocido
         </label>
       </div>
+      {suggestedNet !== null && (
+        <p>
+          Neto calculado desde total menos IVA más descuento:{" "}
+          {pesosDisplay(suggestedNet)} {draft.currency ?? ""}.{" "}
+          {canEdit && (
+            <button
+              type="button"
+              disabled={saving || invalidMoney.has("field:subtotalMinor")}
+              onClick={() => {
+                setDraft({ ...draft, subtotalMinor: suggestedNet });
+                setNetCalculationVersion((version) => version + 1);
+              }}
+            >
+              Usar neto calculado
+            </button>
+          )}
+        </p>
+      )}
       <h3>Ítems normalizados</h3>
       {draft.lineItems.map((item, index) => (
         <div className="review-line" key={lineIds[index] ?? index}>

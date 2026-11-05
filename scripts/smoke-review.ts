@@ -278,6 +278,7 @@ async function run() {
     merchant: "Synthetic OCR Correction",
     totalMinor: 1000,
     categoryName: "Synthetic Category",
+    taxUnknown: true,
   };
   expected(
     (
