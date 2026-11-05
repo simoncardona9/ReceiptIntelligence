@@ -595,6 +595,7 @@ export default function SourceReviewPage() {
               workspaceId={workspaceId}
               origin="receipt"
               originId={receiptId}
+              proposal={proposal}
             />
           )}
         </>

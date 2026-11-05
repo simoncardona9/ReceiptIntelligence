@@ -2,6 +2,16 @@
 
 ## Current state — Step 5 delivered; Step 3 acceptance limits remain
 
+### Step 3 missing-field review clarity — 2026-11-04
+
+- The review editor now outlines missing approval fields and receipt line
+  totals, gives each item a visible number, and links from a compact pending
+  summary to the exact field or row. Draft calculations and warnings update as
+  values change. Approval remains gated by saved server validation.
+- `pnpm check` passed: formatting, lint, typecheck, 67 TypeScript tests,
+  14 Python OCR tests, and production build. This UI change has no schema or
+  state transition changes.
+
 ### Step 3 item price and field clarity follow-up — 2026-11-04
 
 - Audited the private receipt against the saved review. The printed quantity,

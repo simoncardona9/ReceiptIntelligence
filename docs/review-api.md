@@ -55,6 +55,10 @@ regions. All amounts remain editable through versioned corrections.
 The editor suggests net subtotal as total minus IVA plus discount after a user
 enters or confirms IVA. Applying the suggestion updates only the draft; saving
 it creates the normal auditable correction.
+The review editor outlines missing approval fields and incomplete receipt item
+totals next to their inputs. A linked summary jumps to each affected field or
+item row. The displayed arithmetic and warnings recalculate as draft values
+change; approval still requires saving and server validation.
 The proposal GET response includes `taxAnalysis` and `lineAnalysis` from the
 stored OCR evidence for older proposals, so existing saved reviews can inspect
 IVA rows and item prices without reprocessing or replacing their corrections.

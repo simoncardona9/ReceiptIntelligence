@@ -235,7 +235,16 @@ nav,
 .review-editor-fields .review-checkbox { display: flex; align-items: center; gap: 0.5rem; align-self: end; min-height: 2.75rem; }
 .review-checkbox input { width: 1.25rem; min-width: 1.25rem; height: 1.25rem; min-height: 1.25rem; margin: 0; }
 .review-line { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: end; padding: 0.75rem 0; border-bottom: 1px solid #d8e0da; }
+.review-line > strong { flex-basis: 100%; }
 .review-line label { flex: 1 1 180px; min-width: 0; }
 .review-line input { width: 100%; min-width: 0; }
+.review-pending { border: 2px solid #a94b14; border-radius: 0.5rem; background: #fff5ea; padding: 0.8rem 1rem; margin: 1rem 0; }
+.review-pending ul { display: flex; flex-wrap: wrap; gap: 0.4rem 1.4rem; margin-bottom: 0; }
+.review-pending a { color: #71300d; font-weight: 700; }
+.review-needs-attention { border: 2px solid #a94b14; border-radius: 0.45rem; background: #fff5ea; padding: 0.5rem; scroll-margin-top: 1rem; }
+.review-needs-attention :is(input, select)[aria-invalid="true"] { border: 2px solid #a94b14; }
+.review-help { display: block; color: #71300d; font-size: 0.9rem; margin-top: 0.3rem; }
+.review-line-needs-attention { border: 2px solid #a94b14; border-radius: 0.45rem; background: #fff5ea; padding: 0.75rem; }
+.review-line, #review-items { scroll-margin-top: 1rem; }
 .review-editor > button + label { margin-top: 1rem; }
 textarea { width: 100%; min-height: 5rem; font: inherit; }
